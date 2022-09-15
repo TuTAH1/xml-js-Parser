@@ -1,20 +1,17 @@
 ﻿using System;
-using System.IO;
 using System.Net; //для работы с интернетом
-
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Data.SqlClient;
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
-using AngleSharp.Html.Dom;
 using AngleSharp.Io;
-using static System.Console;
+using static Titanium.Classes;
 
 namespace Titanium
 {
@@ -79,7 +76,7 @@ namespace Titanium
 		}*/
 	}
 
-	public class GitHub
+	public static class GitHub
 	{
 		public enum Status
 		{
@@ -96,14 +93,20 @@ namespace Titanium
 		/// <param name="FilePath">Path of physical exe file that should be updated</param>
 		/// <param name="Unpack">Should archives be unpacked while placing in </param>
 		/// <param name="GitHubFilename">regex of the filename of the release</param>
-		/// <param name="TempFolder">Should GitHub release files be extracted in other folder (than FilePath)</param>
+		/// <param name="TempFolder">Leave GitHub release files in ./Temp. Don't Forget to DELETE TEMP folder after performing needed operations</param>
 		/// <param name="ArchiveIgnoreFileList">List of files that shouldn't extracted from downloaded archive. If null, all files will be extracted</param>
 		/// <param name="ReverseArchiveFileList"></param>
+		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
 		/// <returns></returns>
-		private static async Task<Status> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string FilePath, bool? Unpack = default /*TODO:*/, Regex GitHubFilename = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false)
+		public static async Task<Status> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string FilePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex GitHubFilename = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false)
 		{
-			string softwareDownloadLink = "https://".Add(repositoryLink).Add("/releases");
+			string releasesPage = "https://".Add(repositoryLink).Add("/releases");
 			
+			var doc = await Internet.getResponseAsync(releasesPage);
+			if (doc == null) throw new NullReferenceException("can't get response from page " + releasesPage);
+			var lastestReleaseBlock = doc.QuerySelector("div[data-hpc]")?.FirstElementChild;
+			if (lastestReleaseBlock == null) throw new NullReferenceException("Can't get releases from page " + releasesPage);
+
 			if (!File.Exists(FilePath))
 			{
 				await DownloadLastest();
@@ -111,8 +114,7 @@ namespace Titanium
 			}
 			else if (CheckUpdates)
 			{
-				var doc = await Internet.getResponseAsync(@"softwareDownloadLink");
-				var lastestVersion = doc.QuerySelector(".ml-1.wb-break-all")?.Text();
+				var lastestVersion = lastestReleaseBlock.QuerySelector(".ml-1.wb-break-all")?.Text();
 				if (lastestVersion is null) 
 					throw new ArgumentNullException(nameof(lastestVersion), "Can't get lastest version");
 
@@ -131,7 +133,9 @@ namespace Titanium
 				//:If current file's version is lower than in github, download lastest from github
 				if (Version.Parse(lastestVersion) > Version.Parse(currentVersion.ProductVersion))
 				{
-					await DownloadLastest(); //! Not checked
+					if (UpdateQuestion == default || !UpdateQuestion()) 
+						return Status.NoAction;
+					await DownloadLastest();
 					return Status.Updated;
 				}
 			}
@@ -139,16 +143,83 @@ namespace Titanium
 
 			async Task<bool> DownloadLastest()
 			{
-				using (var client = new HttpClient())
-				{
-					var s = await client.GetStreamAsync(softwareDownloadLink);
-					Directory.CreateDirectory(_innerOculusKillerPath.Slice(0,"\\"));
-					var fs = new FileStream(_innerOculusKillerPath, FileMode.OpenOrCreate);
-					s.CopyTo(fs); //TODO: may be done async
-				}
+				var allAssets = 
+					from fileBlock in lastestReleaseBlock.QuerySelector(".mb-3 > details").QuerySelectorAll("ul > li") 
+					let fileNameBlock = fileBlock.FirstElementChild.LastElementChild
+					let metadataGroup = fileBlock.LastElementChild
+					select new GitHubFile(
+						fileNameBlock.TextContent.RemoveAllFrom("\n\t\r "),
+						fileNameBlock.Attributes["href"].TextContent,
+						metadataGroup.FirstElementChild.TextContent,
+						metadataGroup.LastElementChild.TextContent
+						);
 
-				new WebClient().DownloadFile(softwareDownloadLink, "OculusDash.exe");
+				var gitHubFiles = GitHubFilename == null ? allAssets :
+					from file in allAssets 
+					where GitHubFilename.IsMatch(file.Name)  //: Select all files aliased with GitHubFilename regex 
+					select file;
+
+				gitHubFiles =
+					from file in gitHubFiles
+					where file.Name != "Source code" //:except source code files
+					select file;
+
+				foreach (var file in gitHubFiles)
+				{
+					string filepath = $"Temp/{file.Name}";
+
+					using var client = new HttpClient();
+					var s = await client.GetStreamAsync(file.Link);
+					Directory.Delete("Temp", true);
+					Directory.CreateDirectory("Temp");
+					var fs = new FileStream(filepath, FileMode.OpenOrCreate);
+					s.CopyTo(fs); //TODO: may be done async
+					
+					Unpack = Unpack && new FileInfo(filepath).Extension == ".zip";
+					if (Unpack)
+					{
+						var archive = new ZipArchive(fs, ZipArchiveMode.Read, false);
+						foreach (var entry in archive.Entries)
+						{
+							var entryPath = entry.FullName;
+							var entryName = entryPath.Slice("\\", LastStart: true);
+							var processes =
+								from proc in Process.GetProcessesByName(entryName)
+								where proc.MainModule.FileName == System.AppContext.BaseDirectory + entryName
+								select proc;
+
+							processes.ToList().ForEach(p => p.Kill());
+
+							entry.ExtractToFile(entryPath, true);
+						}
+					}
+				}
+				
+
+				//new WebClient().DownloadFile(releasesPage, "OculusDash.exe");
 				return true;
+			}
+
+			
+		}
+
+		class GitHubFile
+		{
+			public string Name;
+			public string Link;
+			public FileSize Size;
+			public DateTime? Date;
+
+			public GitHubFile(string Name, string Link, string Size, string Date)
+			{
+				this.Name = Name;
+				this.Link = Link;
+				this.Size = FileSize.Get(Size);
+				try 
+				{ this.Date = Convert.ToDateTime(Date); }
+				catch (Exception) 
+				{ this.Date = null; }
+				
 			}
 		}
 	}

@@ -6,7 +6,5 @@ namespace xml_js_Parser_Updater
 		{
 			InitializeComponent();
 		}
-
-
 	}
 }

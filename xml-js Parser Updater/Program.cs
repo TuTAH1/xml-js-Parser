@@ -1,3 +1,6 @@
+using Titanium;
+using xml_js_Parser.Classes;
+
 namespace xml_js_Parser_Updater
 {
 	internal static class Program
@@ -6,12 +9,14 @@ namespace xml_js_Parser_Updater
 		///  The main entry point for the application.
 		/// </summary>
 		[STAThread]
-		static void Main()
+		static async Task Main()
 		{
-			// To customize application configuration such as set high DPI settings or default font,
-			// see https://aka.ms/applicationconfiguration.
+			//: To customize application configuration such as set high DPI settings or default font,
+			//: see https://aka.ms/applicationconfiguration.
+
+			//MessageBox.Show("test");
 			ApplicationConfiguration.Initialize();
-			Application.Run(new FormUpdater());
+			await Updater.Update();
 		}
 	}
 }

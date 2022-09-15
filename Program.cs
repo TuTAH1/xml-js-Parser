@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -37,82 +38,92 @@ namespace Application
 		public static Table Table = null;
 		static void Main(string[] args) {
 			SetConsolePallete(DarkBlue:Color.FromArgb(9, 29, 69), DarkCyan:Color.FromArgb(9, 61, 69), Silver: Color.FromArgb(20,20,20));
+			Process.Start("Updater.exe");
 			RClr();
 			Clear();
 			ReWrite(new []{"xml-js Parser ", "v1.3 ", "by ","Тит","ов Ив","ан"}, new []{c.lime, c.cyan, c.Default, c.lime,c.green,c.lime});
-			try
+
+			while (true)
 			{
-				string xmlObject = Name("object"); //:<object> node name
-
-				ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
-				Table Dictionary = GetDictionary(DictionaryPath); //: Чтение словаря
-
-				if (Dictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
-				else                       ReWrite($"Словарь с {Dictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
-
-				var xmlFile = XmlFile.Get();  //: Чтение xml файла
-				var xml = xmlFile.Doc;
-				var docxFilePath = xmlFile.Info.FullName.Slice(0, ".", true, true) + ".docx";
-				if (!File.Exists(docxFilePath)) 
-					docxFilePath = GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
-
-				Table = Dictionary + new Table(GetFileDocx(docxFilePath)); //: Чтение таблицы из .txt файла и добавление её к словарю
-
-				//TableMode = quSwitch(true, c.cyan, c.yellow, c.silver, "Таблица", "Словарь");
-
-				ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
-				var rootNode = xml.Root.Elements(xmlObject).FirstOrDefault();
-				var tree = new TreeNode<Data>(new Data(rootNode));
-				if (rootNode == null) throw new ArgumentNullException(nameof(rootNode), "Корневой object не найден");
-				var objBranches = tree
-					.CreateChilds(new[]
-					{
-						new XMLData("object","code"), //:Steps
-						new XMLData("object","code","name",askIfNotFound:true), //:Groups
-						new XMLData("object", "code", "value", true), //:Objects
-						//new TypesData("attrs"),
-						//new TypesData("entry", "key", "value")
-					}); //: Чтение всего xml и добавление из него элементов в дерево
-				Table = null;
-
-				if (tree.Empty) throw new ArgumentException("дерево пусто");
-				else ReWrite("\nДерево успешно прочитано", c.green, ClearLine: true);
-
-				tree.DeleteGroups(); //: удаление безымянных груп (типа Gp1, APG1 и тд)
-
-				var js = GenerateJsCode(tree);
-				saveFile(js);
-
-
-				void saveFile(string Text)
+				try
 				{
-					var fileName = xmlFile.Info.Name.Slice(0,".", LastEnd:true)+".js";
-					ReWrite("\nВведите название файла: ");
-					fileName = ReadT(InputString: fileName).String();
-					var filePath = xmlFile.Info.DirectoryName.Add("\\") + fileName;
+					Parsing();
+					WaitKey("выбрать другой файл");
+				}
+				catch (Exception e)
+				{
+					e.Write("перезапустить приложение");
+				}
+			}
 
-					if (File.Exists(filePath))
+			
+		}
+
+		private static void Parsing()
+		{
+			string xmlObject = Name("object"); //:<object> node name
+
+			ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
+			Table Dictionary = GetDictionary(DictionaryPath); //: Чтение словаря
+
+			if (Dictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
+			else ReWrite($"Словарь с {Dictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
+
+			var xmlFile = XmlFile.Get(); //: Чтение xml файла
+			var xml = xmlFile.Doc;
+			var docxFilePath = xmlFile.Info.FullName.Slice(0, ".", true, true) + ".docx";
+			if (!File.Exists(docxFilePath))
+				docxFilePath = GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
+
+			Table = Dictionary + new Table(GetFileDocx(docxFilePath)); //: Чтение таблицы из .txt файла и добавление её к словарю
+
+			//TableMode = quSwitch(true, c.cyan, c.yellow, c.silver, "Таблица", "Словарь");
+
+			ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
+			var rootNode = xml.Root.Elements(xmlObject).FirstOrDefault();
+			var tree = new TreeNode<Data>(new Data(rootNode));
+			if (rootNode == null) throw new ArgumentNullException(nameof(rootNode), "Корневой object не найден");
+			var objBranches = tree
+				.CreateChilds(new[]
+				{
+					new XMLData("object", "code"), //:Steps
+					new XMLData("object", "code", "name", askIfNotFound: true), //:Groups
+					new XMLData("object", "code", "value", true), //:Objects
+					//new TypesData("attrs"),
+					//new TypesData("entry", "key", "value")
+				}); //: Чтение всего xml и добавление из него элементов в дерево
+			Table = null;
+
+			if (tree.Empty) throw new ArgumentException("дерево пусто");
+			else ReWrite("\nДерево успешно прочитано", c.green, ClearLine: true);
+
+			tree.DeleteGroups(); //: удаление безымянных груп (типа Gp1, APG1 и тд)
+
+			var js = GenerateJsCode(tree);
+			saveFile(js);
+
+
+			void saveFile(string Text)
+			{
+				var fileName = xmlFile.Info.Name.Slice(0, ".", LastEnd: true) + ".js";
+				ReWrite("\nВведите название файла: ");
+				fileName = ReadT(InputString: fileName).String();
+				var filePath = xmlFile.Info.DirectoryName.Add("\\") + fileName;
+
+				if (File.Exists(filePath))
+				{
+					ReWrite(new[] { $"\nФайл  уже существует. ", "Перезаписать? " }, new[] { c.Default, c.red });
+					if (!quSwitch(null, false))
 					{
-						ReWrite(new []{$"\nФайл  уже существует. ", "Перезаписать? "}, new []{c.Default,c.red});
-						if (!quSwitch(null,false))
-						{
-							saveFile(Text); //: Если нет, ввести другое имя
-							return;
-						}
+						saveFile(Text); //: Если нет, ввести другое имя
+						return;
 					}
-					ReWrite("\nИдёт запись файла...", c.purple);
-					File.WriteAllText(filePath,Text);
-					ReWrite(new []{"\nФайл записан", " по пути ", filePath}, new []{c.lime, c.Default, c.blue});
 				}
 
-				WaitKey("выбрать другой файл");
+				ReWrite("\nИдёт запись файла...", c.purple);
+				File.WriteAllText(filePath, Text);
+				ReWrite(new[] { "\nФайл записан", " по пути ", filePath }, new[] { c.lime, c.Default, c.blue });
 			}
-			catch (Exception e)
-			{
-				e.Write("перезапустить приложение");
-			}
-
-			Main(null);
 		}
 
 		public static string AskUser(this Table Table, string Code)

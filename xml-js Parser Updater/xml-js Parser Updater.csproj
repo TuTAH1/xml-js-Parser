@@ -9,6 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BaseOutputPath>C:\Visual Studio Projects\xml-js Parser\bin</BaseOutputPath>
     <AssemblyName>Updater</AssemblyName>
+    <ApplicationIcon>Updater.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -20,7 +21,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GitLabApiClient" Version="1.8.0" />
+    <Compile Remove="MyLibs\TitaniumConsole.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Updater.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="0.17.1" />
+    <PackageReference Include="AngleSharp.Xml" Version="0.17.0" />
   </ItemGroup>
 
 </Project>
