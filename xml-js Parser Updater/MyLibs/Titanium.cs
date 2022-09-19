@@ -13,8 +13,18 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
-
+//Namespace contains library classes containing add-on to basic c# tools
 namespace Titanium {
+	/// <summary>
+	/// Just my library of small functions that makes c# programming easier. The automatization of automatization instrument
+	/// <para> Despite of the program license, THIS file is <see href="https://creativecommons.org/licenses/by-nc-sa/4.0">CC BY-NC-SA</see></para>
+	/// <list type="table">
+	/// <item>
+	/// <term>Author</term>
+	/// <see href="https://github.com/TuTAH1">Титан</see>
+	/// </item>
+	/// </list>
+	/// </summary>   
 	public static class TypesFuncs { //!21.04.2022 
 
 
@@ -663,8 +673,51 @@ namespace Titanium {
 				return i;
 			}
 
-			public static string FormatToString(this double d, int n, Positon pos, char filler = ' ', int offset = 0) //:Ленивый и неоптимизированный способ
-				=> Math.Round(d, n).ToString().FormatString(n, pos, filler,offset);
+			public static string FormatToString(this double d, int n, Positon pos, char filler = ' ') //:Ленивый и неоптимизированный способ
+			{
+				d = Math.Round(d, n);
+				string s = d.ToString();
+				if (s.Length < n) {
+					switch (pos) {
+					case Positon.left: {
+						for (int i = s.Length; i < n; i++)
+						{
+							s += filler;
+						}
+					} break;
+					case Positon.center: {
+						int halfString = (n - s.Length) / 2;
+						for (int i = 0; i < halfString; i++)
+						{
+							s=s.Insert(0, filler.ToString());
+						}
+						for (int i = s.Length; i < n; i++)
+						{
+							s += filler;
+						}
+					}break;
+					case Positon.right: {
+						for (int i = 0; i < (n - s.Length); i++)
+						{
+							s = s.Insert(0, filler.ToString());
+						}
+					}break;
+					}
+				}
+				else if (s.Length > n) {
+					int Eindex = s.LastIndexOf('E');
+
+					if (Eindex > 0) { //если в строке есть Е+хх
+						string E = s.TrimStart('E');
+						s = s.Substring(0, n - E.Length);
+						s += E;
+					}
+					else {
+						s = s.Substring(0, n);
+					}
+				}
+				return s;
+			}
 
 			/// <summary>
 			/// Makes s.Length be equal to <see cref="Length"/> by adding <see cref="offset"></see> symbols if it's too short or cutting it if it's too long
@@ -1338,7 +1391,7 @@ namespace Titanium {
 					}
 
 				if (FromWhere != Side.Start)
-					for (int i = S.Length; i >=0; i--)
+					for (int i = S.Length -1; i >=0; i--)
 					{
 						if (RemovableChars.Contains(S[i])) end++;
 						else break;
@@ -1404,6 +1457,10 @@ namespace Titanium {
 
 			#endregion
 
+			#region Color
+
+			static Color Change(this Color c, byte? A = null, byte? R = null, byte? G = null, byte? B = null) => Color.FromArgb(A?? c.A, R??c.R, G??c.G, B??c.B);
+			
 			#region Universal Type
 
 			public static void Swap<T>(ref T a, ref T b)
@@ -1427,6 +1484,7 @@ namespace Titanium {
 
 			#endregion
 
+		#endregion
 	}
 
 	public static class ClassicFuncs
@@ -1509,11 +1567,15 @@ namespace Titanium {
 
 			private static string getUnitName(SizeUnit SU) => UnitNames[(int)SU][0];
 
-			private static SizeUnit getSizeUnit(string UnitName)
+			private static SizeUnit getSizeUnit(string UnitName, bool strictlyEqual = false)
 			{
-				for (int i = UnitNames.Length; i >=0; i--)
+				var lowerUnitName = UnitName.ToLower();
+
+				for (int i = UnitNames.Length-1; i >=0; i--)
 				{
-					if (UnitNames[i].Contains(UnitName.ToLower())) return (SizeUnit)i;
+					//Debug.Write(UnitNames[i].ToStringT(", "));
+					if (strictlyEqual? UnitNames[i].Contains(lowerUnitName) : UnitNames[i].Any(lowerUnitName.Contains))
+						return (SizeUnit)i;
 				}
 
 				throw new ArgumentOutOfRangeException(nameof(UnitName), "can't find unit named " + UnitName);
@@ -1540,16 +1602,21 @@ namespace Titanium {
 				CalculateLongSize();
 			}
 
-			public static FileSize Get(string Text)
+			public static FileSize? Get(string Text)
 			{
-				int unitIndex = 0;
-				while (unitIndex < Text.Length)
-					if (Text[unitIndex].IsDoubleT())
-						unitIndex++;
-				var Size = Text[..unitIndex].ToDoubleT();
-				var Unit = getSizeUnit(Text[unitIndex..]);
+				if(Text.IsNullOrEmpty()) return null;
 
-				return new FileSize(Size, Unit);
+				int unitIndex = 0;
+				while (Text[unitIndex].IsDoubleT())
+				{
+					unitIndex++;
+					if (unitIndex == Text.Length) return null;
+				}
+
+				var size = Text[..unitIndex].ToDoubleT();
+				var unit = getSizeUnit(Text[unitIndex..]);
+
+				return new FileSize(size, unit);
 			}
 		}
 	}

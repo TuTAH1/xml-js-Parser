@@ -7,9 +7,12 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <BaseOutputPath>C:\Visual Studio Projects\xml-js Parser\bin</BaseOutputPath>
+    <BaseOutputPath>.\..\bin</BaseOutputPath>
     <AssemblyName>Updater</AssemblyName>
     <ApplicationIcon>Updater.ico</ApplicationIcon>
+    <SignAssembly>False</SignAssembly>
+    <AssemblyVersion>1.2.0</AssemblyVersion>
+    <FileVersion>1.2.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -30,7 +33,9 @@
 
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="0.17.1" />
+    <PackageReference Include="AngleSharp.Io" Version="0.17.0" />
     <PackageReference Include="AngleSharp.Xml" Version="0.17.0" />
+    <PackageReference Include="Ookii.Dialogs.WinForms" Version="4.0.0" />
   </ItemGroup>
 
 </Project>

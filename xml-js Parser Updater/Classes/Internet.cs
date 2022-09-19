@@ -10,7 +10,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
+using AngleSharp.Html;
 using AngleSharp.Io;
+using AngleSharp.Io.Network;
 using static Titanium.Classes;
 
 namespace Titanium
@@ -53,9 +55,24 @@ namespace Titanium
 		{
 			var requester = new DefaultHttpRequester("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0");
 			var config = new Configuration().WithDefaultLoader().With(requester);
-			var document = await BrowsingContext.New(config).OpenAsync(urlAddress);
+			var document = await BrowsingContext.New(config).OpenAsync(urlAddress).ConfigureAwait(false);
 			return document;
 		}
+
+		/*public static async Task<IDocument> getResponseAsync(string urlAddress)
+		{
+			ServicePointManager.SecurityProtocol |=
+				SecurityProtocolType.Tls12 | 
+				SecurityProtocolType.Tls11 | 
+				SecurityProtocolType.Tls;
+			var client = new HttpClient();
+			client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.812");
+			var requester = new HttpClientRequester(client);
+			var config = Configuration.Default.WithRequester(requester).WithDefaultLoader();
+			var context = BrowsingContext.New(config);
+			var document = await context.OpenAsync(urlAddress);
+			return document;
+		}*/
 
 		/*
 		public static async Task<IDocument> getResponseAS(string urlAddress)
@@ -92,24 +109,26 @@ namespace Titanium
 		/// <param name="repositoryLink">GitHub repository link from where updates will be downloaded. Example: github.com/ItsKaitlyn03/OculusKiller</param>
 		/// <param name="FilePath">Path of physical exe file that should be updated</param>
 		/// <param name="Unpack">Should archives be unpacked while placing in </param>
-		/// <param name="GitHubFilename">regex of the filename of the release</param>
+		/// <param name="GitHubFilenameRegex">regex of the filename of the release</param>
 		/// <param name="TempFolder">Leave GitHub release files in ./Temp. Don't Forget to DELETE TEMP folder after performing needed operations</param>
 		/// <param name="ArchiveIgnoreFileList">List of files that shouldn't extracted from downloaded archive. If null, all files will be extracted</param>
 		/// <param name="ReverseArchiveFileList"></param>
 		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
 		/// <returns></returns>
-		public static async Task<Status> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string FilePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex GitHubFilename = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false)
+		public static async Task<Status> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string FilePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillrelatedProcesses = false)
+		
 		{
 			string releasesPage = "https://".Add(repositoryLink).Add("/releases");
 			
-			var doc = await Internet.getResponseAsync(releasesPage);
+			var doc = await Internet.getResponseAsync(releasesPage).ConfigureAwait(false);
 			if (doc == null) throw new NullReferenceException("can't get response from page " + releasesPage);
+			if (doc.Body.Children.Length == 0) throw new NullReferenceException("Невозможно получить доступ к странице. Возможно, отсутствует подключение к Интернету");
 			var lastestReleaseBlock = doc.QuerySelector("div[data-hpc]")?.FirstElementChild;
 			if (lastestReleaseBlock == null) throw new NullReferenceException("Can't get releases from page " + releasesPage);
 
 			if (!File.Exists(FilePath))
 			{
-				await DownloadLastest();
+				await DownloadLastest().ConfigureAwait(false);
 				return Status.Downloaded;
 			}
 			else if (CheckUpdates)
@@ -135,7 +154,7 @@ namespace Titanium
 				{
 					if (UpdateQuestion == default || !UpdateQuestion()) 
 						return Status.NoAction;
-					await DownloadLastest();
+					await DownloadLastest().ConfigureAwait(false);
 					return Status.Updated;
 				}
 			}
@@ -143,8 +162,9 @@ namespace Titanium
 
 			async Task<bool> DownloadLastest()
 			{
-				var allAssets = 
-					from fileBlock in lastestReleaseBlock.QuerySelector(".mb-3 > details").QuerySelectorAll("ul > li") 
+				var allAssets = lastestReleaseBlock.QuerySelector(".mb-3 > details").QuerySelectorAll("ul > li");
+				var gitHubFiles = (
+					from fileBlock in allAssets
 					let fileNameBlock = fileBlock.FirstElementChild.LastElementChild
 					let metadataGroup = fileBlock.LastElementChild
 					select new GitHubFile(
@@ -152,25 +172,26 @@ namespace Titanium
 						fileNameBlock.Attributes["href"].TextContent,
 						metadataGroup.FirstElementChild.TextContent,
 						metadataGroup.LastElementChild.TextContent
-						);
+					)
+				).ToList();
 
-				var gitHubFiles = GitHubFilename == null ? allAssets :
-					from file in allAssets 
-					where GitHubFilename.IsMatch(file.Name)  //: Select all files aliased with GitHubFilename regex 
-					select file;
+				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),"No any files found in the release");
 
-				gitHubFiles =
-					from file in gitHubFiles
-					where file.Name != "Source code" //:except source code files
-					select file;
+				gitHubFiles = (
+					from file in gitHubFiles 
+					where (GitHubFilenameRegex?.IsMatch(file.Name) ?? true) && file.Name != "Source code" //: Select all files aliased with GitHubFilename regex 
+					select file).ToList();
+
+				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),GitHubFilenameRegex==null? "Nothing but source code files found in the release" : $"No files matching \"{GitHubFilenameRegex}\" found in the release");
 
 				foreach (var file in gitHubFiles)
 				{
 					string filepath = $"Temp/{file.Name}";
 
 					using var client = new HttpClient();
-					var s = await client.GetStreamAsync(file.Link);
-					Directory.Delete("Temp", true);
+					var s = await client.GetStreamAsync("https://github.com/"+file.Link);
+					try {Directory.Delete("Temp", true); }
+					catch (Exception) {}
 					Directory.CreateDirectory("Temp");
 					var fs = new FileStream(filepath, FileMode.OpenOrCreate);
 					s.CopyTo(fs); //TODO: may be done async
@@ -183,12 +204,13 @@ namespace Titanium
 						{
 							var entryPath = entry.FullName;
 							var entryName = entryPath.Slice("\\", LastStart: true);
-							var processes =
-								from proc in Process.GetProcessesByName(entryName)
-								where proc.MainModule.FileName == System.AppContext.BaseDirectory + entryName
-								select proc;
 
-							processes.ToList().ForEach(p => p.Kill());
+							if (KillrelatedProcesses && entryName.EndsWith(".exe"))
+								(
+									from proc in Process.GetProcessesByName(entryName)
+									where proc.MainModule.FileName == System.AppContext.BaseDirectory + entryName
+									select proc
+								).ToList().ForEach(p => p.Kill());
 
 							entry.ExtractToFile(entryPath, true);
 						}
@@ -207,7 +229,7 @@ namespace Titanium
 		{
 			public string Name;
 			public string Link;
-			public FileSize Size;
+			public FileSize? Size;
 			public DateTime? Date;
 
 			public GitHubFile(string Name, string Link, string Size, string Date)
