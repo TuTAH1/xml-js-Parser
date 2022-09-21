@@ -35,7 +35,9 @@
     <PackageReference Include="AngleSharp" Version="0.17.1" />
     <PackageReference Include="AngleSharp.Io" Version="0.17.0" />
     <PackageReference Include="AngleSharp.Xml" Version="0.17.0" />
+    <PackageReference Include="Octokit" Version="3.0.0" />
     <PackageReference Include="Ookii.Dialogs.WinForms" Version="4.0.0" />
+    <PackageReference Include="SharpZipLib" Version="1.4.0" />
   </ItemGroup>
 
 </Project>

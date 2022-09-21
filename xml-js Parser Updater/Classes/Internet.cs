@@ -2,8 +2,6 @@
 using System.Net; //для работы с интернетом
 using System.Text;
 using System.Diagnostics;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -13,7 +11,10 @@ using AngleSharp.Dom;
 using AngleSharp.Html;
 using AngleSharp.Io;
 using AngleSharp.Io.Network;
+using ICSharpCode.SharpZipLib.Zip;
+using Octokit;
 using static Titanium.Classes;
+using FileMode = System.IO.FileMode;
 
 namespace Titanium
 {
@@ -102,12 +103,37 @@ namespace Titanium
 			NoAction
 		}
 
+		public class UpdateResult
+		{
+			public Status status;
+			public string? ReleaseDiscription { get; private set; }
+			public string? ReleaseName { get; private set; }
+			public Version? Version { get; private set; }
+
+			public UpdateResult(Status Status = Status.NoAction, Version? Version = null, string? ReleaseName = null, string? ReleaseDiscription = null)
+			{
+				status = Status;
+				this.ReleaseDiscription = ReleaseDiscription;
+				this.ReleaseName = ReleaseName;
+				this.Version = Version;
+			}
+
+			public UpdateResult Change(Status? Status = null, Version? Version = null, string? ReleaseName = null, string? ReleaseDiscription = null)
+			{
+				if (Status!=null) status = (Status)Status;
+				if (ReleaseDiscription!=null) this.ReleaseDiscription = ReleaseDiscription;
+				if (ReleaseName!=null) this.ReleaseName = ReleaseName;
+				if (Version!=null) this.Version = Version;
+				return this;
+			}
+		}
+
 		/// <summary>
 		/// Updates the exe in specified paths from GitHub releases page
 		/// </summary>
 		/// <param name="CheckUpdates">if false, it doesn't checkUpdates if exe file is already exist</param>
-		/// <param name="repositoryLink">GitHub repository link from where updates will be downloaded. Example: github.com/ItsKaitlyn03/OculusKiller</param>
-		/// <param name="FilePath">Path of physical exe file that should be updated</param>
+		/// <param name="repositoryLink">GitHub repository link from where updates will be downloaded. In any format from "https://github.com/TuTAH1/xml-js-Parser/releases/tag/1.2.0" to just "TuTAH1/xml-js-Parser" (both variants will give the same result)</param>
+		/// <param name="ProgramExePath">Path of physical exe file that should be updated</param>
 		/// <param name="Unpack">Should archives be unpacked while placing in </param>
 		/// <param name="GitHubFilenameRegex">regex of the filename of the release</param>
 		/// <param name="TempFolder">Leave GitHub release files in ./Temp. Don't Forget to DELETE TEMP folder after performing needed operations</param>
@@ -115,105 +141,115 @@ namespace Titanium
 		/// <param name="ReverseArchiveFileList"></param>
 		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
 		/// <returns></returns>
-		public static async Task<Status> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string FilePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillrelatedProcesses = false)
-		
+		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillRelatedProcesses = false)
 		{
-			string releasesPage = "https://".Add(repositoryLink).Add("/releases");
-			
-			var doc = await Internet.getResponseAsync(releasesPage).ConfigureAwait(false);
-			if (doc == null) throw new NullReferenceException("can't get response from page " + releasesPage);
-			if (doc.Body.Children.Length == 0) throw new NullReferenceException("Невозможно получить доступ к странице. Возможно, отсутствует подключение к Интернету");
-			var lastestReleaseBlock = doc.QuerySelector("div[data-hpc]")?.FirstElementChild;
-			if (lastestReleaseBlock == null) throw new NullReferenceException("Can't get releases from page " + releasesPage);
+			string[] ss = repositoryLink.RemoveFrom(TypesFuncs.Side.Start, "https://", "github.com/").Split("/");
+			if (ss.Length < 2) throw new ArgumentException("Can't get username and repName from " + repositoryLink);
+			return await checkSoftwareUpdates(CheckUpdates, ss[0], ss[1], ProgramExePath, UpdateQuestion, Unpack, GitHubFilenameRegex, TempFolder, ArchiveIgnoreFileList, ReverseArchiveFileList, KillRelatedProcesses);
+		}
 
-			if (!File.Exists(FilePath))
+		/// <summary>
+		/// Updates the exe in specified paths from GitHub releases page
+		/// </summary>
+		/// <param name="CheckUpdates">if false, it doesn't checkUpdates if exe file is already exist</param>
+		/// /// <param name="author">Repository author id (example: TuTAH1)</param>
+		/// <param name="repName">Repository name (example: SteamVR-OculusDash-Switcher)</param>
+		/// <param name="ProgramExePath">Path of physical exe file that should be updated</param>
+		/// <param name="Unpack">Should archives be unpacked while placing in </param>
+		/// <param name="GitHubFilenameRegex">regex of the filename of the release</param>
+		/// <param name="TempFolder">Leave GitHub release files in ./Temp. Don't Forget to DELETE TEMP folder after performing needed operations</param>
+		/// <param name="ArchiveIgnoreFileList">List of files that shouldn't extracted from downloaded archive. If null, all files will be extracted</param>
+		/// <param name="ReverseArchiveFileList"></param>
+		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
+		/// <returns></returns>
+		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string author, string repName, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool? KillRelatedProcesses = false)
+
+		{
+			KillRelatedProcesses ??= !TempFolder;
+
+			var github = new GitHubClient(new ProductHeaderValue("Titanium-GithubSoftwareUpdater"));
+			var release = await github.Repository.Release.GetLatest(author, repName).ConfigureAwait(false);
+			Version? relVersion = null;
+			try
+			{
+				relVersion = Version.Parse(new Regex("[^.0-9]").Replace(release.TagName, ""));
+			} catch (Exception) { }
+			UpdateResult result = new(Status.NoAction, relVersion, release.Name, release.Body);
+			
+			bool fileExist = File.Exists(ProgramExePath);
+
+			if (!fileExist)
 			{
 				await DownloadLastest().ConfigureAwait(false);
-				return Status.Downloaded;
+				return result.Change(Status.Downloaded);
 			}
 			else if (CheckUpdates)
 			{
-				var lastestVersion = lastestReleaseBlock.QuerySelector(".ml-1.wb-break-all")?.Text();
-				if (lastestVersion is null) 
-					throw new ArgumentNullException(nameof(lastestVersion), "Can't get lastest version");
-
-				var currentVersion = FileVersionInfo.GetVersionInfo(FilePath);
+				var currentVersion = FileVersionInfo.GetVersionInfo(ProgramExePath);
 				if (currentVersion is null) 
 					throw new InvalidOperationException("Product version field is empty");
 
-				lastestVersion = new Regex("[^.0-9]").Replace(lastestVersion, "");
-
-				/*MessageBox.Show($"Lastest version: {lastestVersion};" +
-				                $"\nParsed: {Version.Parse(lastestVersion)}" +
-				                $"\n Current version: {currentVersion.ProductVersion}" +
-				                $"\n Parsed: {Version.Parse(currentVersion.ProductVersion)}");*/
-
-
 				//:If current file's version is lower than in github, download lastest from github
-				if (Version.Parse(lastestVersion) > Version.Parse(currentVersion.ProductVersion))
+				if (relVersion > Version.Parse(currentVersion.ProductVersion!))
 				{
 					if (UpdateQuestion == default || !UpdateQuestion()) 
-						return Status.NoAction;
+						return result;
 					await DownloadLastest().ConfigureAwait(false);
-					return Status.Updated;
+					return result.Change(Status.Updated);
 				}
 			}
-			return Status.NoAction;
+			return result;
 
 			async Task<bool> DownloadLastest()
 			{
-				var allAssets = lastestReleaseBlock.QuerySelector(".mb-3 > details").QuerySelectorAll("ul > li");
-				var gitHubFiles = (
-					from fileBlock in allAssets
-					let fileNameBlock = fileBlock.FirstElementChild.LastElementChild
-					let metadataGroup = fileBlock.LastElementChild
-					select new GitHubFile(
-						fileNameBlock.TextContent.RemoveAllFrom("\n\t\r "),
-						fileNameBlock.Attributes["href"].TextContent,
-						metadataGroup.FirstElementChild.TextContent,
-						metadataGroup.LastElementChild.TextContent
-					)
-				).ToList();
+
+				var gitHubFiles = release.Assets;
 
 				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),"No any files found in the release");
 
 				gitHubFiles = (
 					from file in gitHubFiles 
-					where (GitHubFilenameRegex?.IsMatch(file.Name) ?? true) && file.Name != "Source code" //: Select all files aliased with GitHubFilename regex 
+					where (GitHubFilenameRegex?.IsMatch(file.Name) ?? true) //: Select all files aliased with GitHubFilename regex 
 					select file).ToList();
 
-				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),GitHubFilenameRegex==null? "Nothing but source code files found in the release" : $"No files matching \"{GitHubFilenameRegex}\" found in the release");
+				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),GitHubFilenameRegex==null? "No files found in the release" : $"No files matching \"{GitHubFilenameRegex}\" found in the release");
 
 				foreach (var file in gitHubFiles)
 				{
-					string filepath = $"Temp/{file.Name}";
+					string filepath = $"Temp\\{file.Name}";
 
 					using var client = new HttpClient();
-					var s = await client.GetStreamAsync("https://github.com/"+file.Link);
+					var s = await client.GetStreamAsync(file.BrowserDownloadUrl).ConfigureAwait(false);
 					try {Directory.Delete("Temp", true); }
 					catch (Exception) {}
 					Directory.CreateDirectory("Temp");
 					var fs = new FileStream(filepath, FileMode.OpenOrCreate);
 					s.CopyTo(fs); //TODO: may be done async
+					fs.Close();
+					s.Close();
 					
 					Unpack = Unpack && new FileInfo(filepath).Extension == ".zip";
 					if (Unpack)
 					{
-						var archive = new ZipArchive(fs, ZipArchiveMode.Read, false);
-						foreach (var entry in archive.Entries)
+						/*var archive = new ZipFile(fs.Name);
+						foreach (ZipEntry entry in archive)
 						{
-							var entryPath = entry.FullName;
+							var entryPath = (TempFolder? "Temp\\" : "") + entry.Name;
 							var entryName = entryPath.Slice("\\", LastStart: true);
 
-							if (KillrelatedProcesses && entryName.EndsWith(".exe"))
-								(
-									from proc in Process.GetProcessesByName(entryName)
-									where proc.MainModule.FileName == System.AppContext.BaseDirectory + entryName
-									select proc
-								).ToList().ForEach(p => p.Kill());
+							if ((bool)KillRelatedProcesses && entryName.EndsWith(".exe"))
+								TypesFuncs.KillProcesses(entryName, AppContext.BaseDirectory + entryName);
 
-							entry.ExtractToFile(entryPath, true);
+							entry.(entryPath, true);
 						}
+						archive.Close();*/
+						//ZipStrings.CodePage = 65001;
+						new FastZip { EntryFactory = new ZipEntryFactory { IsUnicodeText = true } }.ExtractZip(filepath, (TempFolder? "Temp\\" : ""), null);
+						File.Delete(filepath);
+					}
+					else
+					{
+						File.Move(filepath, filepath.RemoveFrom(TypesFuncs.Side.Start, "Temp\\"));
 					}
 				}
 				
@@ -248,6 +284,136 @@ namespace Titanium
 
 
 	#region Garbage
+	/*public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillRelatedProcesses = false)
+		
+		{
+			string releasesPage = "https://".Add(repositoryLink).Add("/releases");
+			var doc = await Internet.getResponseAsync(releasesPage).ConfigureAwait(false);
+			if (doc == null) throw new NullReferenceException("can't get response from page " + releasesPage);
+			await doc.WaitForReadyAsync();
+			if (doc.Body.Children.Length == 0) throw new NullReferenceException("Unable to access the page. Possible reason: no internet connection");
+			var lastestReleaseBlock = doc.QuerySelector("div[data-hpc]")?.FirstElementChild;
+			if (lastestReleaseBlock == null) throw new NullReferenceException("Can't get releases from page " + releasesPage);
+
+			string? releaseName = lastestReleaseBlock.QuerySelector(".Link--primary").Text();
+			string? releaseDetails = lastestReleaseBlock.QuerySelector("div[data-test-selector=\"body-content\"]")?.Text();
+			Version? latestVersion = null;
+
+			bool fileExist = File.Exists(ProgramExePath);
+			try
+			{
+				string? verStr = lastestReleaseBlock.QuerySelector(".ml-1.wb-break-all")?.Text();
+				if (verStr == null) 
+					throw new ArgumentNullException(nameof(verStr), "Can't get lastest version");
+				latestVersion = Version.Parse(new Regex("[^.0-9]").Replace(verStr, ""));
+			}
+			catch (Exception e)
+			{
+				if (CheckUpdates && fileExist) throw;
+			}
+
+			UpdateResult result = new(Status.NoAction, latestVersion, releaseName, releaseDetails);
+
+			if (!fileExist)
+			{
+				await DownloadLastest().ConfigureAwait(false);
+				return result.Change(Status.Downloaded);
+			}
+			else if (CheckUpdates)
+			{
+				var currentVersion = FileVersionInfo.GetVersionInfo(ProgramExePath);
+				if (currentVersion is null) 
+					throw new InvalidOperationException("Product version field is empty");
+				
+				/*MessageBox.Show($"Lastest version: {lastestVersion};" +
+				                $"\nParsed: {Version.Parse(lastestVersion)}" +
+				                $"\n Current version: {currentVersion.ProductVersion}" +
+				                $"\n Parsed: {Version.Parse(currentVersion.ProductVersion)}");#1#
+
+				//:If current file's version is lower than in github, download lastest from github
+				
+				if (latestVersion > Version.Parse(currentVersion.ProductVersion!))
+				{
+					if (UpdateQuestion == default || !UpdateQuestion()) 
+						return result;
+					await DownloadLastest().ConfigureAwait(false);
+					return result.Change(Status.Updated);
+				}
+			}
+			return result;
+
+			async Task<bool> DownloadLastest()
+			{
+				var allAssets = lastestReleaseBlock.QuerySelector(".mb-3 > details").QuerySelectorAll("ul > li");
+				if (allAssets.Length == 0)
+				{
+					throw new ArgumentNullException("Can't find Assets list", new InvalidOperationException("Lastest release block html:\n" + lastestReleaseBlock.Html()));
+				}
+				var gitHubFiles = (
+					from fileBlock in allAssets
+					let fileNameBlock = fileBlock.FirstElementChild.LastElementChild
+					let metadataGroup = fileBlock.LastElementChild
+					select new GitHubFile(
+						fileNameBlock.Text(),//.RemoveAllFrom("\n\t\r "),
+						fileNameBlock.Attributes["href"].TextContent,
+						metadataGroup.FirstElementChild.TextContent,
+						metadataGroup.LastElementChild.TextContent
+					)
+				).ToList();
+
+				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),"No any files found in the release");
+
+				gitHubFiles = (
+					from file in gitHubFiles 
+					where (GitHubFilenameRegex?.IsMatch(file.Name) ?? true) && file.Name != "Source code" //: Select all files aliased with GitHubFilename regex 
+					select file).ToList();
+
+				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),GitHubFilenameRegex==null? "Nothing but source code files found in the release" : $"No files matching \"{GitHubFilenameRegex}\" found in the release");
+
+				foreach (var file in gitHubFiles)
+				{
+					string filepath = $"Temp\\{file.Name}";
+
+					using var client = new HttpClient();
+					var s = await client.GetStreamAsync("https://github.com/"+file.Link);
+					try {Directory.Delete("Temp", true); }
+					catch (Exception) {}
+					Directory.CreateDirectory("Temp");
+					var fs = new FileStream(filepath, FileMode.OpenOrCreate);
+					s.CopyTo(fs); //TODO: may be done async
+					
+					Unpack = Unpack && new FileInfo(filepath).Extension == ".zip";
+					if (Unpack)
+					{
+						var archive = new ZipArchive(fs, ZipArchiveMode.Read, false);
+						foreach (var entry in archive.Entries)
+						{
+							var entryPath = TempFolder? "Temp\\" : "" + entry.FullName;
+							var entryName = entryPath.Slice("\\", LastStart: true);
+
+							if (KillRelatedProcesses && entryName.EndsWith(".exe"))
+								(
+									from proc in Process.GetProcessesByName(entryName)
+									where proc.MainModule.FileName == AppContext.BaseDirectory + entryName
+									select proc
+								).ToList().ForEach(p => p.Kill());
+
+							entry.ExtractToFile(entryPath, true);
+						}
+						archive.Dispose();
+						File.Delete(filepath);
+					}
+					else
+					{
+						File.Move(filepath, filepath.RemoveFrom("Temp\\", TypesFuncs.Side.Start));
+					}
+				}
+				
+
+				//new WebClient().DownloadFile(releasesPage, "OculusDash.exe");
+				return true;
+			}*/
+
 	//public static string getResponse(string urlAddress)
 	//{
 	//	HttpWebRequest request = (HttpWebRequest)WebRequest.Create(urlAddress);

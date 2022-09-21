@@ -25,7 +25,7 @@ namespace Titanium {
 	/// </item>
 	/// </list>
 	/// </summary>   
-	public static class TypesFuncs { //!21.04.2022 
+	public static class TypesFuncs { //!20.09.2022 
 
 
 		#region Parsing
@@ -720,7 +720,7 @@ namespace Titanium {
 			}
 
 			/// <summary>
-			/// Makes s.Length be equal to <see cref="Length"/> by adding <see cref="offset"></see> symbols if it's too short or cutting it if it's too long
+			/// Makes s.Length be equal to <paramref name="FixedLength"/> by adding <paramref name="Offset"/> symbols if it's too short or cutting it if it's too long
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="FixedLengtharam>
@@ -783,11 +783,11 @@ namespace Titanium {
 			public enum Positon: byte { left,center,right}
 
 			/// <summary>
-			/// Slices the string form Start to End not including End
+			/// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="Start">if negative, counts from end</param>
-			/// <param name="End"if negative, counts from end</param>
+			/// <param name="End">if negative, counts from end</param>
 			/// <returns></returns>
 			public static string Slice(this string s, int Start = 0, int End = Int32.MaxValue)
 			{
@@ -796,11 +796,11 @@ namespace Titanium {
 				//if (Start < 0) throw new ArgumentOutOfRangeException(nameof(Start),Start,null);
 				if (Start > End) throw new ArgumentOutOfRangeException(nameof(Start),Start,$"start ({Start}) is be bigger than end ({End})");
 				if (End > s.Length) End = s.Length-1;
-				return s.Substring(Start, End - Start);
+				return s.Substring(Start, (End - Start)+1);
 			}
 
 			/// <summary>
-			/// Обрезает строку, начиная с первого появления StartsWith и заканчивая последним появлением EndsWith
+			/// Обрезает строку, начиная с первого появления <paramref name="StartsWith"/> и заканчивая последним появлением <paramref name="EndsWith"/>
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
@@ -905,7 +905,7 @@ namespace Titanium {
 			}
 
 			/// <summary>
-			/// Reports the position of a symbol next to last occurance of a string s2 (position after the end of s2) 
+			/// Reports the position of a symbol next to last occurance of a string <paramref name="s2"/> (position after the end of <paramref name="s2"/>) 
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="s2"></param>
@@ -982,6 +982,18 @@ namespace Titanium {
 				return IndexOfEnd ? Result : Result - Conditions.Length;
 			}
 
+			/// <summary>
+			/// Return an index of (<paramref name="IndexOfEnd"/>? end : start) of <paramref name="s2"/> in <paramref name="s"/>
+			/// </summary>
+			/// <param name="s"></param>
+			/// <param name="s2"></param>
+			/// <param name="Start">Start checking from</param>
+			/// <param name="End">until End</param>
+			/// <param name="Direction">Direction of searching</param>
+			/// <param name="IndexOfEnd">Return index of end of s2 (last letter) instead of start (first letter)</param>
+			/// <param name="LastOccuarance"></param>
+			/// <returns></returns>
+			/// <exception cref="ArgumentOutOfRangeException"></exception>
 			public static int IndexOfT(this string s, string s2, int Start = 0, int End = Int32.MaxValue, DirectionEnum Direction = DirectionEnum.Custom, bool IndexOfEnd = false, bool LastOccuarance = false)
 			{
 				if (End == Int32.MaxValue) End = Direction == DirectionEnum.Left ? 0 : s.Length-1;
@@ -992,10 +1004,18 @@ namespace Titanium {
 
 				if (End == Start) return -2;
 
-				if (Direction == DirectionEnum.Custom)
-					Direction = End > Start ? DirectionEnum.Right : DirectionEnum.Left;
-				else if ((Direction == DirectionEnum.Left && End > Start) || (Direction == DirectionEnum.Right && End < Start)) 
-					Swap(ref Start, ref End);
+				switch (Direction)
+				{
+					case DirectionEnum.Custom:
+						Direction = End > Start ? DirectionEnum.Right : DirectionEnum.Left;
+						break;
+					case DirectionEnum.Left when End > Start:
+					case DirectionEnum.Right when End < Start:
+						Swap(ref Start, ref End);
+						break;
+					default:
+						throw new ArgumentOutOfRangeException(nameof(Direction), Direction, null);
+				}
 
 				bool rightDirection = Direction == DirectionEnum.Right;
 				int defaultCurMatchPos = rightDirection? 0 : s.Length-1;
@@ -1015,6 +1035,7 @@ namespace Titanium {
 						}
 						else
 						{
+							//i-=curMatchPos
 							curMatchPos = defaultCurMatchPos;
 						}
 					}
@@ -1035,7 +1056,7 @@ namespace Titanium {
 						}
 					}
 
-				return IndexOfEnd? Result : Result - s2.Length;
+				return IndexOfEnd? Result : (Result - s2.Length) +1;
 			}
 
 
@@ -1063,7 +1084,7 @@ namespace Titanium {
 
 
 			/// <summary>
-			/// s[..Start] + NewString + s[End..]
+			/// <paramref name="s"/>[..<paramref name="Start"/>] + <paramref name="NewString"/> + s[<paramref name="End"/>..]
 			/// </summary>
 			/// <param name="s">original string</param>
 			/// <param name="Start">String from 0 to Start will be added before NewString</param>
@@ -1142,7 +1163,7 @@ namespace Titanium {
 			}
 
 			/// <summary>
-			/// Добавляет ту часть <see cref="addiction"/> к <see cref="s"/>, которая не содержится в конце <see cref="s"/>. Например, "Test".Add("stop") = "Testop"; "Test".Add("rest") = "Testrest"
+			/// Добавляет ту часть <paramref name="addiction"/> к <paramref name="s"/>, которая не содержится в конце <paramref name="s"/>. Например, "Test".Add("stop") = "Testop"; "Test".Add("rest") = "Testrest"
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="addiction"></param>
@@ -1326,26 +1347,32 @@ namespace Titanium {
 				return list;
 			}
 
-			public static string Remove(this string S, string RemovableString, StringComparison ComparisonType = StringComparison.Ordinal)
+			/// <summary>
+			/// Removes (<paramref name="FromLeft"/>? first : last) occurance of <paramref name="RemovableString"/>
+			/// </summary>
+			/// <param name="S"></param>
+			/// <param name="RemovableString"></param>
+			/// <param name="FromLeft"></param>
+			/// <param name="ComparisonType"></param>
+			/// <returns></returns>
+			public static string Remove(this string S, string RemovableString, bool FromLeft = true, StringComparison ComparisonType = StringComparison.Ordinal)
 			{
 				if (RemovableString is null or "") return S;
-				int startPos = S.IndexOf(RemovableString, ComparisonType);
+				int startPos = FromLeft? S.IndexOf(RemovableString) : S.LastIndexOf(RemovableString);
 				return startPos == -1 ? S : S.Remove(startPos, RemovableString.Length);
 			}
 
-			public static string RemoveEnd(this string Source, string EndsWith)
+			public static string RemoveFrom(this string Source, Side FromWhere = Side.End, params string[] RemovableStrings)
 			{
-				if (Source.EndsWith(EndsWith)) return Source.Slice(0, -EndsWith.Length);
+				foreach (var rem in RemovableStrings) 
+					Source = Source.RemoveFrom(FromWhere, rem);
 				return Source;
 			}
 
-			public static string RemoveEnd(this string Source, params string[] EndsWith)
+			public static string RemoveFrom(this string Source, Side FromWhere, string RemovableString)
 			{
-				foreach (var end in EndsWith)
-				{
-					Source = Source.Remove(end);
-				}
-
+				if (FromWhere!= Side.End && Source.StartsWith(RemovableString)) Source = Source.Slice(RemovableString.Length);
+				if (FromWhere!= Side.Start && Source.EndsWith(RemovableString)) Source = Source.Slice(0, -RemovableString.Length);
 				return Source;
 			}
 
@@ -1381,7 +1408,7 @@ namespace Titanium {
 
 			public static string RemoveAllFrom(this string S, string RemovableChars, Side FromWhere = Side.Both, StringComparison ComparisonType = StringComparison.Ordinal)
 			{
-				int start = 0, end = 1;
+				int start = 0, end = 0;
 
 				if (FromWhere != Side.End)
 					foreach (var C in S)
@@ -1484,7 +1511,91 @@ namespace Titanium {
 
 			#endregion
 
+			#region Process
+
+			public static void KillProcesses(string? Name = null, string? Path = null)
+			{
+				List<Process> processes;
+				try
+				{
+					processes = (
+						from proc in Name == null ? Process.GetProcesses() : Process.GetProcessesByName(Name)
+						where Path == null || proc.MainModule.FileName == Path
+						select proc
+					).ToList();
+				}
+				catch (Exception e)
+				{
+					throw new Exception("Error while gathering processes", e);
+				}
+
+				foreach (var proc in processes)
+				{
+					try
+					{
+						proc.Kill();
+					}
+					catch (Exception e)
+					{
+						throw new InvalidOperationException("Can't kill process", e);
+					}
+				}
+			}
+
+			#endregion
+
 		#endregion
+	}
+
+	public static class IO
+	{
+		/// <summary>
+		/// Copies all files, directories, subdirectories and it's contant to the new folder
+		/// </summary>
+		/// <param name="SourcePath"></param>
+		/// <param name="TargetPath"></param>
+		/// <param name="DisableSyntaxCheck">All paths should end on "\" and contains only "\" (not "/)</param>
+		public static void CopyAll(string SourcePath, string TargetPath, bool DisableSyntaxCheck = false)
+		{
+			if (!DisableSyntaxCheck)
+			{
+				SourcePath = SourcePath.Replace("/", "\\").Add("\\");
+				TargetPath = TargetPath.Replace("/", "\\").Add("\\");
+			}
+
+			//Now Create all of the directories
+			foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
+			{
+				Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
+			}
+
+			//Copy all the files & Replaces any files with the same name
+			foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
+			{
+				File.Copy(newPath, newPath.Replace(SourcePath, TargetPath), true);
+			}
+		}
+
+		public static void CopyAllTo(this DirectoryInfo di, string TargetPath)
+		{
+			CopyAll(di.FullName, TargetPath);
+		}
+
+		public static void MoveAllTo(string SourcePath, string TargetPath, bool DisableSyntaxCheck = false, bool DeleteSourceDir = true) => new DirectoryInfo(SourcePath).MoveAllTo(TargetPath,DeleteSourceDir, DisableSyntaxCheck)
+
+		public static void MoveAllTo(this DirectoryInfo di, string TargetPath, bool DeleteSourceDir = true, bool DisableSyntaxCheck = false)
+		{
+			var sourcePath = di.FullName;
+			CopyAll(sourcePath,TargetPath,DisableSyntaxCheck);
+			if (DeleteSourceDir) Directory.Delete(sourcePath, true);
+			else
+			{
+				foreach (var dir in di.GetDirectories())
+				{
+					dir.Delete(true);
+				}
+			}
+		}
 	}
 
 	public static class ClassicFuncs

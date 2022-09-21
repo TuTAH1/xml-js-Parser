@@ -361,30 +361,36 @@ namespace Titanium
 
 	public static class ErrorTaskDialog
 	{
-		public static string Language;
+		public static string Language = "English";
+		private static bool DictionaryInitialized = false;
 
 		private static class ETDLocalizaton
 		{
-			internal static string OpenMicrosoftDocs = "Open Microsoft documentation";
-			internal static string Close = "Close";
-			internal static string Copy_to_Clipboard = "Copy to Clipboard";
-			internal static string Open_Inner_Exception = "Open inner exception";
+			internal static string OpenMicrosoftDocs;
+			internal static string Close;
+			internal static string Copy_to_Clipboard;
+			internal static string Open_Inner_Exception;
+			internal static string Title;
 		}
 
-		public static void InitializeVocabulary(string OpenMicrosoftDocs, string Copy_to_Clipboard, string Open_Inner_Exception, string Close)
+		public static void InitializeDictionary(string OpenMicrosoftDocs = "Open Microsoft documentation", string Copy_to_Clipboard = "Copy to Clipboard", string Open_Inner_Exception =  "Open inner exception", string Close = "Close", string Title = "Error")
 		{
+			DictionaryInitialized = true;
+
 			ETDLocalizaton.OpenMicrosoftDocs = OpenMicrosoftDocs;
 			ETDLocalizaton.Close = Close;
 			ETDLocalizaton.Copy_to_Clipboard = Copy_to_Clipboard;
 			ETDLocalizaton.Open_Inner_Exception = Open_Inner_Exception;
+			ETDLocalizaton.Title = Title;
 		}
-		public static void ShowMessageBox(this Exception? Error)
+		public static void ShowMessageBox(this Exception? Error, string? Title = null)
 		{
 			if(Error == null) return;
-
+			if(!DictionaryInitialized) InitializeDictionary();
 
 
 			Ookii.Dialogs.WinForms.TaskDialog taskDialog = new();
+			taskDialog.WindowTitle = Title ?? ETDLocalizaton.Title;
 			taskDialog.Content = Error.Message;
 			//if(Error.Data.Count!=0) taskDialog.CollapsedControlText = Error.Data.ToDictionary().ToStringT();
 			if(Error.HelpLink!=null) taskDialog.Footer = $"<a href=\"{Error.HelpLink}\">{ETDLocalizaton.OpenMicrosoftDocs}</a>";

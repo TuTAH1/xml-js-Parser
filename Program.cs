@@ -19,10 +19,13 @@ using static xml_js_Parser.Classes.Methods;
 using static Titanium.Consol;
 using static Titanium.TypesFuncs;
 using System.Linq;
+using System.Reflection;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Color = System.Drawing.Color;
 using Table = xml_js_Parser.Classes.Table;
+
+[assembly:AssemblyVersion("1.3")] //: program version
 
 namespace Application
 {
@@ -36,12 +39,15 @@ namespace Application
 		public const string skip = "!skip";
 		public static List<string> SkipList = new();
 		public static Table Table = null;
+
+		public static Version Version => Assembly.GetExecutingAssembly().GetName().Version;
+		public static Version DicVer = new Version(1,2); //: Dictionary version (версия словаря)
 		static void Main(string[] args) {
 			SetConsolePallete(DarkBlue:Color.FromArgb(9, 29, 69), DarkCyan:Color.FromArgb(9, 61, 69), Silver: Color.FromArgb(20,20,20));
 			Process.Start("Updater.exe");
 			RClr();
 			Clear();
-			ReWrite(new []{"xml-js Parser ", "v1.3 ", "by ","Тит","ов Ив","ан"}, new []{c.lime, c.cyan, c.Default, c.lime,c.green,c.lime});
+			ReWrite(new []{"xml-js Parser ", $"v{Version} ", "by ","Тит","ов Ив","ан"}, new []{c.lime, c.cyan, c.Default, c.lime,c.green,c.lime});
 
 			while (true)
 			{

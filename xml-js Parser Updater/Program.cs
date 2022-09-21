@@ -16,14 +16,18 @@ namespace xml_js_Parser_Updater
 
 			//MessageBox.Show("test");
 			ApplicationConfiguration.Initialize();
-			ErrorTaskDialog.InitializeVocabulary(			
+			ErrorTaskDialog.InitializeDictionary
+			(			
 				"Открыть справку Microsoft",
 				"Скопировать текст ошибки в буфер обмена", 
 				"Открыть внутреннее исключение", 
-				"Закрыть");
+				"Закрыть",
+				"Ошибка"
+			);
 			try
 			{
-				await Updater.Update().ConfigureAwait(false);
+				await Task.Run(Updater.Update);
+				//await Updater.Update().ConfigureAwait(false);
 			}
 			catch (Exception e)
 			{

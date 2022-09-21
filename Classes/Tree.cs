@@ -152,7 +152,7 @@ namespace xml_js_Parser.Classes
 			foreach (var obj in Nodes)
 			{
 				i++;
-				var objCode = NodeData[0].NameType == null? null : obj.Element(Name(NodeData[0].NameType))?.Value.RemoveEnd("_a", "Auto");
+				var objCode = NodeData[0].NameType == null? null : obj.Element(Name(NodeData[0].NameType))?.Value.RemoveFrom(TypesFuncs.Side.End, "_a", "Auto");
 				if(objCode?.EndsWith("Editable") == true) continue;
 				var objValue = NodeData[0].ValueType == null? null : obj.Element(Name(NodeData[0].ValueType))?.Value;
 				var tableRow = Program.Table.GetByCode(objCode);
