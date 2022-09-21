@@ -1581,7 +1581,7 @@ namespace Titanium {
 			CopyAll(di.FullName, TargetPath);
 		}
 
-		public static void MoveAllTo(string SourcePath, string TargetPath, bool DisableSyntaxCheck = false, bool DeleteSourceDir = true) => new DirectoryInfo(SourcePath).MoveAllTo(TargetPath,DeleteSourceDir, DisableSyntaxCheck)
+		public static void MoveAllTo(string SourcePath, string TargetPath, bool DisableSyntaxCheck = false, bool DeleteSourceDir = true) => new DirectoryInfo(SourcePath).MoveAllTo(TargetPath, DeleteSourceDir, DisableSyntaxCheck);
 
 		public static void MoveAllTo(this DirectoryInfo di, string TargetPath, bool DeleteSourceDir = true, bool DisableSyntaxCheck = false)
 		{
