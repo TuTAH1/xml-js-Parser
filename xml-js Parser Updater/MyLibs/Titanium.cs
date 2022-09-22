@@ -1181,6 +1181,7 @@ namespace Titanium {
 
 			private static string AddToEnd(this string s, string addiction)
 			{
+				if (s.IsNullOrEmpty()) return addiction;
 				int offset = 0;
 
 				for (; offset < addiction.Length; offset++)
@@ -1560,7 +1561,7 @@ namespace Titanium {
 			if (!DisableSyntaxCheck)
 			{
 				SourcePath = SourcePath.Replace("/", "\\").Add("\\");
-				TargetPath = TargetPath.Replace("/", "\\").Add("\\");
+				TargetPath = TargetPath.IsNullOrEmpty()? "" : TargetPath.Replace("/", "\\").Add("\\");
 			}
 
 			//Now Create all of the directories

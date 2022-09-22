@@ -165,6 +165,7 @@ namespace Titanium
 		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string author, string repName, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool? KillRelatedProcesses = false)
 
 		{
+			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 			KillRelatedProcesses ??= !TempFolder;
 
 			var github = new GitHubClient(new ProductHeaderValue("Titanium-GithubSoftwareUpdater"));
@@ -243,7 +244,7 @@ namespace Titanium
 							entry.(entryPath, true);
 						}
 						archive.Close();*/
-						//ZipStrings.CodePage = 65001;
+						ZipStrings.CodePage = 866;
 						new FastZip { EntryFactory = new ZipEntryFactory { IsUnicodeText = true } }.ExtractZip(filepath, (TempFolder? "Temp\\" : ""), null);
 						File.Delete(filepath);
 					}
