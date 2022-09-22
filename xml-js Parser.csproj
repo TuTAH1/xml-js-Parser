@@ -6,6 +6,8 @@
     <RootNamespace>xml_js_Parser</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
+    <Version>1.1.0</Version>
+    <Authors>Титан</Authors>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,8 +25,6 @@
 	</ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="0.17.1" />
-    <PackageReference Include="AngleSharp.Xml" Version="0.17.0" />
     <PackageReference Include="Costura.Fody" Version="5.7.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

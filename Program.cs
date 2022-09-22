@@ -7,9 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using AngleSharp.Attributes;
-using AngleSharp.Common;
-using AngleSharp.Dom;
 using Application;
 using Titanium;
 using xml_js_Parser.Classes;
@@ -24,8 +21,6 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Color = System.Drawing.Color;
 using Table = xml_js_Parser.Classes.Table;
-
-[assembly:AssemblyVersion("1.3")] //: program version
 
 namespace Application
 {

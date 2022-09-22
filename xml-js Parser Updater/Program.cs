@@ -26,8 +26,10 @@ namespace xml_js_Parser_Updater
 			);
 			try
 			{
-				await Task.Run(Updater.Update);
-				//await Updater.Update().ConfigureAwait(false);
+				var upd = new FormUpdater();
+				Task.Run(() => upd.ShowDialog());
+				await Task.Run(() => Updater.Update(upd)).ConfigureAwait(false);
+				//upd.Close();
 			}
 			catch (Exception e)
 			{

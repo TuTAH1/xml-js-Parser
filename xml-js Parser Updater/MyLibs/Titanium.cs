@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Numerics;
@@ -25,7 +26,7 @@ namespace Titanium {
 	/// </item>
 	/// </list>
 	/// </summary>   
-	public static class TypesFuncs { //!20.09.2022 
+	public static class TypesFuncs { //!22.09.2022 
 
 
 		#region Parsing
@@ -795,12 +796,12 @@ namespace Titanium {
 				if (Start < 0) Start = s.Length + Start;
 				//if (Start < 0) throw new ArgumentOutOfRangeException(nameof(Start),Start,null);
 				if (Start > End) throw new ArgumentOutOfRangeException(nameof(Start),Start,$"start ({Start}) is be bigger than end ({End})");
-				if (End > s.Length) End = s.Length-1;
-				return s.Substring(Start, (End - Start)+1);
+				if (End > s.Length) End = s.Length;
+				return s.Substring(Start, (End - Start));
 			}
 
 			/// <summary>
-			/// Обрезает строку, начиная с первого появления <paramref name="StartsWith"/> и заканчивая последним появлением <paramref name="EndsWith"/>
+			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последнего : первого) появления <paramref name="StartsWith"/> и заканчивая (<paramref name="LastEnd"/>? последним : первым) появлением <paramref name="EndsWith"/>
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
@@ -808,20 +809,35 @@ namespace Titanium {
 			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
 			/// <param name="LastStart">Начинать поиск Start с конца</param>
 			/// <param name="LastEnd">Начинать поиск Start с конца</param>
+			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
+			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
 			/// <returns></returns>
-			public static string Slice(this string s, string StartsWith, string EndsWith, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true)
+			public static string Slice(this string s, string StartsWith, string EndsWith, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false) //:25.08.2022 includeStart, includeEnd
 			{
 				var start = StartsWith == null? 0 : LastStart? s.LastIndexOfEnd(StartsWith) : s.IndexOfEnd(StartsWith);
 				if (start < 0) return  AlwaysReturnString? s : null;
-				
+
 				s = s.Slice(start);
 
 				var end = EndsWith==null? s.Length-1 : LastEnd? s.LastIndexOf(EndsWith) : s.IndexOf(EndsWith);
 				if (end < 0) return  AlwaysReturnString? s : null;
 
-				return s.Slice(0,end);
+
+				return IncludeStart? StartsWith : "" + s.Slice(start) + (IncludeEnd? EndsWith : "");
 			}
 
+			/// <summary>
+			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последнего : первого) появления <paramref name="StartsWith"/> и заканчивая (<paramref name="LastEnd"/>? последним : первым) появлением <paramref name="EndsWith"/>
+			/// </summary>
+			/// <param name="s"></param>
+			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
+			/// <param name="EndsWith">Строка, до которой будет происходить срезание</param>
+			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
+			/// <param name="LastStart">Начинать поиск Start с конца</param>
+			/// <param name="LastEnd">Начинать поиск Start с конца</param>
+			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
+			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
+			/// <returns></returns>
 			public static string SliceFromEnd(this string s, string StartsWith = null, string EndsWith = null, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false) //:25.08.2022 includeStart, includeEnd
 			{
 				var end = EndsWith==null? s.Length-1 : LastEnd? s.LastIndexOf(EndsWith) : s.IndexOf(EndsWith);
@@ -834,6 +850,17 @@ namespace Titanium {
 
 				return IncludeStart? StartsWith : "" + s.Slice(start) + (IncludeEnd? EndsWith : "");
 			}
+
+			/// <summary>
+			/// Обрезает строку, начиная со <paramref name="Start"/> и заканчивая с (<paramref name="LastEnd"/>? последним : первым) появлением <paramref name="EndsWith"/>
+			/// </summary>
+			/// <param name="s"></param>
+			/// <param name="Start">Индекс начала среза</param>
+			/// <param name="EndsWith">Строка, до которой будет происходить срезание</param>
+			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
+			/// <param name="LastEnd">Начинать поиск Start с конца</param>
+			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
+			/// <returns></returns>
 			public static string Slice(this string s, int Start, string EndsWith, bool AlwaysReturnString = false, bool LastEnd = true, bool IncludeEnd = false) //:25.08.2022 includeEnd
 			{
 				if (Start < 0) Start = s.Length + Start;
@@ -843,6 +870,16 @@ namespace Titanium {
 				return s.Slice(Start, end) + (IncludeEnd? EndsWith : "");
 
 			}
+
+			/// <summary>
+			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последнего : первого) появления <paramref name="StartsWith"/> и заканчивая <paramref name="End"/>/>
+			/// </summary>
+			/// <param name="s"></param>
+			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
+			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
+			/// <param name="LastStart">Начинать поиск Start с конца</param>
+			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
+			/// <returns></returns>
 			public static string Slice(this string s, string StartsWith, int End = Int32.MaxValue, bool AlwaysReturnString = false, bool LastStart = false, bool IncludeStart = false) //:25.08.2022 includeStart
 			{
 				if (End < 0) End = s.Length + End;
@@ -854,33 +891,58 @@ namespace Titanium {
 			}
 
 			/// <summary>
-			/// 
+			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последней : первой) строки, удовлетворяющие всем <paramref name="StartConditions"/> и заканчивая с (<paramref name="LastEnd"/>? последней : первой) строки, удовлетворяющие всем <paramref name="EndConditions"/>
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="StartConditions">Условия, которым должны удовлетворять символы начала строки (по функции на 1 символ)</param>
 			/// <param name="EndConditions">Условия, которым должны удовлетворять символы конца строки (по функции на 1 символ)</param>
-			/// <param name="AlwaysReturnString">Возвращать изначальную строку при неудачном поиске</param>
+			/// <param name="AlwaysReturnString">При неудачном поиске, принять параметры start/end по умолчанию (0,^1)</param>
+			/// <param name="LastStart">Начинать поиск Start с конца</param>
+			/// <param name="LastEnd">Начинать поиск Start с конца</param>
+			/// <param name="IncludeStart">Включать слово, удовлетворяющее всем <paramref name="StartConditions"/></param>
+			/// <param name="IncludeEnd">Включать слово, удовлетворяющее всем <paramref name="EndConditions"/></param>
 			/// <returns></returns>
-			public static string Slice(this string s, Func<char,bool>[] StartConditions, Func<char,bool>[] EndConditions, bool AlwaysReturnString = false)
+			public static string Slice(this string s, Func<char,bool>[] StartConditions, Func<char,bool>[] EndConditions = null, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false) //:22.09.2022 Last/Include Start/End; BEHAVIOUR changed - now Start/End Conditions will have default values (0, end) in case of null; BEHAVIOUR changed - now if AlwaysReturnString it do slice even if one of Start/End not found.
 			{
-				if (!StartConditions.Any()) throw new ArgumentNullException(nameof(StartConditions), "Условия начальной строки не заданы");
-				if (!EndConditions.Any()) throw new ArgumentNullException(nameof(EndConditions), "Условия конечной строки не заданы");
 
-				var start = s.IndexOfT(StartConditions,IndexOfEnd:true);
-				if (start < 0) return  AlwaysReturnString? s : null;
+				/*if (StartConditions?.Any()!=true) throw new ArgumentNullException(nameof(StartConditions), "Условия начальной строки не заданы");
+				if (EndConditions?.Any()!=true) throw new ArgumentNullException(nameof(EndConditions), "Условия конечной строки не заданы");*/
 
-				var end =s.IndexOfT(EndConditions,LastOccuarance:true);
-				if (end < 0) return  AlwaysReturnString? s : null;
+				var start = StartConditions?.Any()==true? 
+					s.IndexOfT(StartConditions, IndexOfEnd: !IncludeStart, RightDirection: !LastStart) : 0;
+				if (start < 0)
+					if (AlwaysReturnString)
+						start = 0;
+					else
+						return null;
+					
+
+				var end = EndConditions?.Any()!=true? 
+					s.IndexOfT(EndConditions,IndexOfEnd: IncludeEnd, RightDirection: !LastEnd) : 0;
+				if (end < 0) 
+					if (AlwaysReturnString)
+						end = s.Length-1;
+					else
+						return null;
 
 				return s.Slice(start, end);
 			}
 
-			public static string Slice(this string s, int Start, Func<char,bool>[] EndConditions, bool AlwaysReturnString = false)
+			/// <summary>
+			/// Обрезает строку, начиная с <paramref name="Start"/> и заканчивая с (<paramref name="LastEnd"/>? последней : первой) строки, удовлетворяющие всем <paramref name="EndConditions"/>
+			/// </summary>
+			/// <param name="s"></param>
+			/// <param name="EndConditions">Условия, которым должны удовлетворять символы конца строки (по функции на 1 символ)</param>
+			/// <param name="AlwaysReturnString">При неудачном поиске, принять параметры start/end по умолчанию (0,^1)</param>
+			/// <param name="LastEnd">Начинать поиск Start с конца</param>
+			/// <param name="IncludeEnd">Включать слово, удовлетворяющее всем <paramref name="EndConditions"/></param>
+			/// <returns></returns>
+			public static string Slice(this string s, int Start, Func<char,bool>[] EndConditions, bool AlwaysReturnString = false, bool LastEnd = true, bool IncludeEnd = false) //:22.09.2022 Last/Include Start; BEHAVIOUR changed - now Start Conditions will have default values (0) in case of null
 			{
 				if (Start < 0) Start = s.Length + Start;
-				if (!EndConditions.Any()) throw new ArgumentNullException(nameof(EndConditions), "Условия конечной строки не заданы");
 
-				var end =s.IndexOfT(EndConditions,LastOccuarance:true);
+				var end = EndConditions?.Any()!=true? 
+					s.IndexOfT(EndConditions,IndexOfEnd: IncludeEnd, RightDirection: !LastEnd) : 0;
 				if (end < 0) return  AlwaysReturnString? s.Slice(Start) : null;
 
 				return s.Slice(Start, end);
@@ -926,39 +988,39 @@ namespace Titanium {
 				Left
 			}
 
-			public static int IndexOfT(this string s, Func<char,bool>[] Conditions, int Start = 0, int End = Int32.MaxValue, DirectionEnum Direction = DirectionEnum.Custom, bool IndexOfEnd = false, bool LastOccuarance = false)
+			public static int IndexOfT(this string s, Func<char,bool>[] Conditions, int Start = 0, int End = Int32.MaxValue, bool RightDirection = true, bool IndexOfEnd = false) //:22.09.22 Bugfix, deleted useless LastOccurance; Replaced DirectionEnum with bool RightDirection
 			{
-				if (End == Int32.MaxValue) End = Direction == DirectionEnum.Left ? 0 : s.Length-1;
+				if (End == Int32.MaxValue) End = s.Length-1;
 				if (Start < 0) Start = s.Length + Start;
-				if (Start < 0) throw new ArgumentOutOfRangeException(nameof(Start),Start,$"incorrect negative Start ({Start - s.Length}). |Start| should be ≤ s.Length ({s.Length})");
+				if (Start < 0) new ArgumentOutOfRangeException(nameof(Start),Start,$"incorrect negative Start ({Start - s.Length}). |Start| should be ≤ s.Length ({s.Length})");
 				if (End < 0) End = s.Length + End;
 				if (End < 0) throw new ArgumentOutOfRangeException(nameof(End),End,$"incorrect negative End ({End - s.Length}). |End| should be ≤ s.Length ({s.Length})");
 
 				if (End == Start) return -2;
 
-				if (Direction == DirectionEnum.Custom)
-					Direction = End > Start ? DirectionEnum.Right : DirectionEnum.Left;
-				else if ((Direction == DirectionEnum.Left && End > Start) || (Direction == DirectionEnum.Right && End < Start)) 
+				if(RightDirection && End < Start ||
+				   !RightDirection && End > Start)
 					Swap(ref Start, ref End);
-
-				bool rightDirection = Direction == DirectionEnum.Right;
-				int defaultCurMatchPos = rightDirection? 0 : s.Length-1;
+				
+				int defaultCurMatchPos = RightDirection? 0 : Conditions.Length-1;
 				int curCondition = defaultCurMatchPos;
-				int Result = -1; 
+				int Result = -1;
 
-				if (rightDirection)
+				if (RightDirection)
 					for (int i = Start; i < End; i++)
 					{
 						if (Conditions[curCondition](s[i]))
 						{
 							curCondition++;
-							if (curCondition != Conditions.Length-1) continue;
+							if (curCondition != Conditions.Length) continue;
 							Result = i;
 							curCondition = defaultCurMatchPos;
-							if(!LastOccuarance) break;
+							//if(!LastOccuarance)
+								break;
 						}
 						else
 						{
+							i -= curCondition;
 							curCondition = defaultCurMatchPos;
 						}
 					}
@@ -971,15 +1033,18 @@ namespace Titanium {
 							if (curCondition != 0) continue;
 							Result = i;
 							curCondition = defaultCurMatchPos;
-							if(!LastOccuarance) break;
+							//if(!LastOccuarance) 
+								break;
 						}
 						else
 						{
+							i += ((Conditions.Length-1) - curCondition);
 							curCondition = defaultCurMatchPos;
 						}
 					}
 
-				return IndexOfEnd ? Result : Result - Conditions.Length;
+				return Result = Result == -1 || IndexOfEnd ^ !RightDirection?
+					Result : (Result - Conditions.Length) +1;
 			}
 
 			/// <summary>
@@ -994,9 +1059,9 @@ namespace Titanium {
 			/// <param name="LastOccuarance"></param>
 			/// <returns></returns>
 			/// <exception cref="ArgumentOutOfRangeException"></exception>
-			public static int IndexOfT(this string s, string s2, int Start = 0, int End = Int32.MaxValue, DirectionEnum Direction = DirectionEnum.Custom, bool IndexOfEnd = false, bool LastOccuarance = false)
+		public static int IndexOfT(this string s, string s2, int Start = 0, int End = Int32.MaxValue, bool RightDirection = true, bool IndexOfEnd = false) //:22.09.22 Bugfix, deleted useless LastOccurance; Replaced DirectionEnum with bool RightDirection
 			{
-				if (End == Int32.MaxValue) End = Direction == DirectionEnum.Left ? 0 : s.Length-1;
+				if (End == Int32.MaxValue) End = s.Length-1;
 				if (Start < 0) Start = s.Length + Start;
 				if (Start < 0) new ArgumentOutOfRangeException(nameof(Start),Start,$"incorrect negative Start ({Start - s.Length}). |Start| should be ≤ s.Length ({s.Length})");
 				if (End < 0) End = s.Length + End;
@@ -1004,25 +1069,15 @@ namespace Titanium {
 
 				if (End == Start) return -2;
 
-				switch (Direction)
-				{
-					case DirectionEnum.Custom:
-						Direction = End > Start ? DirectionEnum.Right : DirectionEnum.Left;
-						break;
-					case DirectionEnum.Left when End > Start:
-					case DirectionEnum.Right when End < Start:
-						Swap(ref Start, ref End);
-						break;
-					default:
-						throw new ArgumentOutOfRangeException(nameof(Direction), Direction, null);
-				}
+				if(RightDirection && End < Start ||
+				   !RightDirection && End > Start)
+					Swap(ref Start, ref End);
 
-				bool rightDirection = Direction == DirectionEnum.Right;
-				int defaultCurMatchPos = rightDirection? 0 : s.Length-1;
+				int defaultCurMatchPos = RightDirection? 0 : s2.Length-1;
 				int curMatchPos = defaultCurMatchPos;
 				int Result = -1;
 
-				if (rightDirection)
+				if (RightDirection)
 					for (int i = Start; i < End; i++)
 					{
 						if (s[i] == s2[curMatchPos])
@@ -1031,11 +1086,12 @@ namespace Titanium {
 							if (curMatchPos != s2.Length) continue;
 							Result = i;
 							curMatchPos = defaultCurMatchPos;
-							if(!LastOccuarance) break;
+							//if(!LastOccuarance)
+								break;
 						}
 						else
 						{
-							//i-=curMatchPos
+							i -= curMatchPos;
 							curMatchPos = defaultCurMatchPos;
 						}
 					}
@@ -1048,15 +1104,18 @@ namespace Titanium {
 							if (curMatchPos != 0) continue;
 							Result = i;
 							curMatchPos = defaultCurMatchPos;
-							if(!LastOccuarance) break;
+							//if(!LastOccuarance) 
+								break;
 						}
 						else
 						{
+							i += ((s2.Length-1) - curMatchPos);
 							curMatchPos = defaultCurMatchPos;
 						}
 					}
 
-				return IndexOfEnd? Result : (Result - s2.Length) +1;
+				return Result = Result == -1 || IndexOfEnd ^ !RightDirection?
+					Result : (Result - s2.Length) +1;
 			}
 
 
@@ -1363,7 +1422,7 @@ namespace Titanium {
 				return startPos == -1 ? S : S.Remove(startPos, RemovableString.Length);
 			}
 
-			public static string RemoveFrom(this string Source, Side FromWhere = Side.End, params string[] RemovableStrings)
+			public static string RemoveFrom(this string Source, TypesFuncs.Side FromWhere = Side.End, params string[] RemovableStrings)
 			{
 				foreach (var rem in RemovableStrings) 
 					Source = Source.RemoveFrom(FromWhere, rem);
@@ -1514,9 +1573,10 @@ namespace Titanium {
 
 			#region Process
 
-			public static void KillProcesses(string? Name = null, string? Path = null)
+			public static void KillProcesses(string? Path = null, string? Name = null)
 			{
 				List<Process> processes;
+				Name ??= Path?.Slice(new[] { new Func<char, bool>(x => x is '\\' or '/') }, LastStart:true);
 				try
 				{
 					processes = (
@@ -1530,6 +1590,8 @@ namespace Titanium {
 					throw new Exception("Error while gathering processes", e);
 				}
 
+				var Exceptions = new List<InvalidOperationException>();
+
 				foreach (var proc in processes)
 				{
 					try
@@ -1538,9 +1600,11 @@ namespace Titanium {
 					}
 					catch (Exception e)
 					{
-						throw new InvalidOperationException("Can't kill process", e);
+						Exceptions.Add(new InvalidOperationException($"Can't kill process {proc.ProcessName}", e));
 					}
 				}
+
+				if (Exceptions.Count > 0) throw new AggregateException(Exceptions);
 			}
 
 			#endregion
@@ -1555,8 +1619,9 @@ namespace Titanium {
 		/// </summary>
 		/// <param name="SourcePath"></param>
 		/// <param name="TargetPath"></param>
+		/// <param name="KillRelatedProcesses"></param>
 		/// <param name="DisableSyntaxCheck">All paths should end on "\" and contains only "\" (not "/)</param>
-		public static void CopyAll(string SourcePath, string TargetPath, bool DisableSyntaxCheck = false)
+		public static void CopyAll(string SourcePath, string TargetPath, bool KillRelatedProcesses = false, bool DisableSyntaxCheck = false)
 		{
 			if (!DisableSyntaxCheck)
 			{
@@ -1573,18 +1638,21 @@ namespace Titanium {
 			//Copy all the files & Replaces any files with the same name
 			foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
 			{
-				File.Copy(newPath, newPath.Replace(SourcePath, TargetPath), true);
+				var destination = newPath.Replace(SourcePath, TargetPath);
+				if (KillRelatedProcesses && destination.EndsWith(".exe"))
+					TypesFuncs.KillProcesses(Path: destination);
+				File.Copy(newPath, destination , true);
 			}
 		}
 
-		public static void CopyAllTo(this DirectoryInfo di, string TargetPath)
+		public static void CopyAllTo(this DirectoryInfo di, string TargetPath, bool KillRelatedProcesses = false,  bool DisableSyntaxCheck = false)
 		{
-			CopyAll(di.FullName, TargetPath);
+			CopyAll(di.FullName, TargetPath, KillRelatedProcesses, DisableSyntaxCheck);
 		}
 
-		public static void MoveAllTo(string SourcePath, string TargetPath, bool DisableSyntaxCheck = false, bool DeleteSourceDir = true) => new DirectoryInfo(SourcePath).MoveAllTo(TargetPath, DeleteSourceDir, DisableSyntaxCheck);
+		public static void MoveAllTo(string SourcePath, string TargetPath, bool DeleteSourceDir = true,  bool KillRelatedProcesses = false, bool DisableSyntaxCheck = false) => new DirectoryInfo(SourcePath).MoveAllTo(TargetPath, DeleteSourceDir, KillRelatedProcesses,DisableSyntaxCheck);
 
-		public static void MoveAllTo(this DirectoryInfo di, string TargetPath, bool DeleteSourceDir = true, bool DisableSyntaxCheck = false)
+		public static void MoveAllTo(this DirectoryInfo di, string TargetPath, bool DeleteSourceDir = true, bool KillRelatedProcesses = false, bool DisableSyntaxCheck = false)
 		{
 			var sourcePath = di.FullName;
 			CopyAll(sourcePath,TargetPath,DisableSyntaxCheck);

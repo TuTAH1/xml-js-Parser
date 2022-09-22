@@ -141,11 +141,11 @@ namespace Titanium
 		/// <param name="ReverseArchiveFileList"></param>
 		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
 		/// <returns></returns>
-		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillRelatedProcesses = false)
+		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool ReverseGithubFilenameRegex = false, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillRelatedProcesses = false)
 		{
 			string[] ss = repositoryLink.RemoveFrom(TypesFuncs.Side.Start, "https://", "github.com/").Split("/");
 			if (ss.Length < 2) throw new ArgumentException("Can't get username and repName from " + repositoryLink);
-			return await checkSoftwareUpdates(CheckUpdates, ss[0], ss[1], ProgramExePath, UpdateQuestion, Unpack, GitHubFilenameRegex, TempFolder, ArchiveIgnoreFileList, ReverseArchiveFileList, KillRelatedProcesses);
+			return await checkSoftwareUpdates(CheckUpdates, ss[0], ss[1], ProgramExePath, UpdateQuestion, Unpack, GitHubFilenameRegex,ReverseGithubFilenameRegex, TempFolder, ArchiveIgnoreFileList, ReverseArchiveFileList, KillRelatedProcesses);
 		}
 
 		/// <summary>
@@ -162,7 +162,7 @@ namespace Titanium
 		/// <param name="ReverseArchiveFileList"></param>
 		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
 		/// <returns></returns>
-		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string author, string repName, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool? KillRelatedProcesses = false)
+		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string author, string repName, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool ReverseGithubFilenameRegex = false,  bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool? KillRelatedProcesses = false)
 
 		{
 			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -210,7 +210,7 @@ namespace Titanium
 
 				gitHubFiles = (
 					from file in gitHubFiles 
-					where (GitHubFilenameRegex?.IsMatch(file.Name) ?? true) //: Select all files aliased with GitHubFilename regex 
+					where (GitHubFilenameRegex?.IsMatch(file.Name) ^ ReverseGithubFilenameRegex ??  true) //: Select all files aliased with GitHubFilename regex 
 					select file).ToList();
 
 				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),GitHubFilenameRegex==null? "No files found in the release" : $"No files matching \"{GitHubFilenameRegex}\" found in the release");
@@ -232,18 +232,21 @@ namespace Titanium
 					Unpack = Unpack && new FileInfo(filepath).Extension == ".zip";
 					if (Unpack)
 					{
-						/*var archive = new ZipFile(fs.Name);
-						foreach (ZipEntry entry in archive)
+						if ((bool)KillRelatedProcesses)
 						{
-							var entryPath = (TempFolder? "Temp\\" : "") + entry.Name;
-							var entryName = entryPath.Slice("\\", LastStart: true);
+							var archive = new ZipFile(fs.Name);
+							foreach (ZipEntry entry in archive)
+							{
+								var entryPath = (TempFolder ? "Temp\\" : "") + entry.Name;
+								var entryName = entryPath.Slice("\\", LastStart: true);
 
-							if ((bool)KillRelatedProcesses && entryName.EndsWith(".exe"))
-								TypesFuncs.KillProcesses(entryName, AppContext.BaseDirectory + entryName);
+								if ((bool)KillRelatedProcesses && entryName.EndsWith(".exe"))
+									TypesFuncs.KillProcesses(Path: AppContext.BaseDirectory + entryName, Name: entryName);
+							}
 
-							entry.(entryPath, true);
+							archive.Close();
 						}
-						archive.Close();*/
+
 						ZipStrings.CodePage = 866;
 						new FastZip { EntryFactory = new ZipEntryFactory { IsUnicodeText = true } }.ExtractZip(filepath, (TempFolder? "Temp\\" : ""), null);
 						File.Delete(filepath);

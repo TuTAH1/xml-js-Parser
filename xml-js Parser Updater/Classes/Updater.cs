@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Text.RegularExpressions;
 using Titanium;
 using xml_js_Parser_Updater;
 using static Titanium.Forms;
@@ -8,21 +10,21 @@ namespace xml_js_Parser.Classes
 	public static class Updater
 	{
 
-		public static async Task Update()
+		public static async Task Update(FormUpdater ProgressForm)
 		{
-			//var UpdaterForm = new FormUpdater();
+			//var UpdaterForm = await Task.Run(() => new FormUpdater("Установка обновлений..."));
 			var updateResult = new GitHub.UpdateResult();
 
 			try
 			{
-				updateResult = await GitHub.checkSoftwareUpdates(true, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
+				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates(true, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
 				{
-					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение закроется для обновления)", "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
-			//		if (result) UpdaterForm.Show();
+					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)", "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
+					if (result) Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);
 
 					return result;
 				},
-					TempFolder:true).ConfigureAwait(false);
+					true, new Regex("^Update"), true, true, KillRelatedProcesses:true)).ConfigureAwait(false);
 			}
 			catch (Exception e)
 			{
@@ -31,6 +33,10 @@ namespace xml_js_Parser.Classes
 
 			if (updateResult.status != GitHub.Status.NoAction)
 			{
+				try
+				{
+					Task.Run(() => ProgressForm.ToLabel("Установка обновления")).ConfigureAwait(false);
+				} catch (Exception){}
 				try
 				{
 					if (updateResult.ReleaseDiscription.Contains("!Dic"))
@@ -59,19 +65,43 @@ namespace xml_js_Parser.Classes
 
 				try
 				{
-					IO.MoveAllTo("Temp", "");
+					var procList = new List<Process>();
+					var pathList = new List<string>();
+					foreach (var proc in Process.GetProcesses())
+					{
+						try
+						{
+							string? procPath = proc?.MainModule?.FileName;
+							if (procPath != Environment.ProcessPath
+							    && procPath?.Slice(0, "\\", LastEnd: true) == Environment.CurrentDirectory
+							    && proc?.MainModule?.FileVersionInfo.FileDescription == "xml-js Parser")
+							{
+								procList.Add(proc);
+								pathList.Add(procPath);
+							}
+						}
+						catch (Exception) {}
+					
+					}
+
+					procList.ForEach(x => x.Kill()); //: Kill all processes in this folder
+
+					IO.MoveAllTo("Temp", "", true);
+
+					foreach (var x in pathList) 
+						try { Process.Start(x); } catch (Exception){}
+
 				}
 				catch (Exception e)
 				{
 					e.ShowMessageBox("Ошибка замены файлов");
+					Directory.Delete("Temp", true);
 				}
 
-			//	UpdaterForm.Close();
+				ProgressForm.CloseAsync();
 
 				MessageBox.Show("Обновление завершено");
 			}
-
-
 		}
 		
 	}

@@ -1420,7 +1420,7 @@ namespace Titanium {
 
 				AfterReadAction?.Invoke();
 				var inputString = ro.String();
-				var filepath = inputString.Slice("\"", "\"", true);
+				var filepath = inputString.Slice("\"", "\"",true);
 				FileInfo fileInfo;
 				if (filepath.IsNullOrEmpty())
 				{
