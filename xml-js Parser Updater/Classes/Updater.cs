@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
+using Ookii.Dialogs.WinForms;
 using Titanium;
 using xml_js_Parser_Updater;
 using static Titanium.Forms;
@@ -19,7 +20,7 @@ namespace xml_js_Parser.Classes
 			{
 				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates(true, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
 				{
-					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)", "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
+					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)\n\n Описание обновления:\n" + updateResult.ReleaseDiscription, "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
 					if (result) Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);
 
 					return result;
@@ -86,7 +87,7 @@ namespace xml_js_Parser.Classes
 
 					procList.ForEach(x => x.Kill()); //: Kill all processes in this folder
 
-					IO.MoveAllTo("Temp", "", true);
+					IO.MoveAllTo("Temp", "", true, false, new List<Regex>(new []{new Regex(@".*\\Updater\..*")}));
 
 					foreach (var x in pathList) 
 						try { Process.Start(x); } catch (Exception){}

@@ -1621,8 +1621,9 @@ namespace Titanium {
 		/// <param name="TargetPath"></param>
 		/// <param name="KillRelatedProcesses"></param>
 		/// <param name="DisableSyntaxCheck">All paths should end on "\" and contains only "\" (not "/)</param>
-		public static void CopyAll(string SourcePath, string TargetPath, bool KillRelatedProcesses = false, bool DisableSyntaxCheck = false)
+		public static void CopyAll(string SourcePath, string TargetPath, bool KillRelatedProcesses = false, List<Regex>? ExceptList = null, bool DisableSyntaxCheck = false)
 		{
+			ExceptList ??= new List<Regex>();
 			if (!DisableSyntaxCheck)
 			{
 				SourcePath = SourcePath.Replace("/", "\\").Add("\\");
@@ -1632,30 +1633,33 @@ namespace Titanium {
 			//Now Create all of the directories
 			foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
 			{
+				if (ExceptList.Any(x => x.Match(dirPath).Success))
 				Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
 			}
 
 			//Copy all the files & Replaces any files with the same name
-			foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
+			foreach (string filePath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
 			{
-				var destination = newPath.Replace(SourcePath, TargetPath);
+				if (!ExceptList.Any(x => x.Match(filePath).Success)) continue;
+
+				var destination = filePath.Replace(SourcePath, TargetPath);
 				if (KillRelatedProcesses && destination.EndsWith(".exe"))
 					TypesFuncs.KillProcesses(Path: destination);
-				File.Copy(newPath, destination , true);
+				File.Copy(filePath, destination, true);
 			}
 		}
 
-		public static void CopyAllTo(this DirectoryInfo di, string TargetPath, bool KillRelatedProcesses = false,  bool DisableSyntaxCheck = false)
+		public static void CopyAllTo(this DirectoryInfo di, string TargetPath, bool KillRelatedProcesses = false, List<Regex>? ExceptList = null,  bool DisableSyntaxCheck = false)
 		{
-			CopyAll(di.FullName, TargetPath, KillRelatedProcesses, DisableSyntaxCheck);
+			CopyAll(di.FullName, TargetPath, KillRelatedProcesses, ExceptList, DisableSyntaxCheck);
 		}
 
-		public static void MoveAllTo(string SourcePath, string TargetPath, bool DeleteSourceDir = true,  bool KillRelatedProcesses = false, bool DisableSyntaxCheck = false) => new DirectoryInfo(SourcePath).MoveAllTo(TargetPath, DeleteSourceDir, KillRelatedProcesses,DisableSyntaxCheck);
+		public static void MoveAllTo(string SourcePath, string TargetPath, bool DeleteSourceDir = true,  bool KillRelatedProcesses = false, List<Regex>? ExceptList = null, bool DisableSyntaxCheck = false) => new DirectoryInfo(SourcePath).MoveAllTo(TargetPath, DeleteSourceDir, KillRelatedProcesses, ExceptList, DisableSyntaxCheck);
 
-		public static void MoveAllTo(this DirectoryInfo di, string TargetPath, bool DeleteSourceDir = true, bool KillRelatedProcesses = false, bool DisableSyntaxCheck = false)
+		public static void MoveAllTo(this DirectoryInfo di, string TargetPath, bool DeleteSourceDir = true, bool KillRelatedProcesses = false, List<Regex>? ExceptList = null, bool DisableSyntaxCheck = false)
 		{
 			var sourcePath = di.FullName;
-			CopyAll(sourcePath,TargetPath,DisableSyntaxCheck);
+			CopyAll(sourcePath,TargetPath, KillRelatedProcesses, ExceptList,DisableSyntaxCheck);
 			if (DeleteSourceDir) Directory.Delete(sourcePath, true);
 			else
 			{
