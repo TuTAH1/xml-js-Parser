@@ -128,30 +128,41 @@ namespace Titanium
 			}
 		}
 
+		
+		public enum UpdateMode
+		{
+			/// <summary> Download programm if it's not exist, but don't update it if it's exist </summary>
+			Download,
+			/// <summary> Only checks a new version, but not update it. </summary>
+			Check,
+			/// <summary> Update programm only if it's not installed or older version is installed </summary>
+			Update,
+			/// <summary> Update programm even if the newer version is installed </summary>
+			Replace
+		}
+
 		/// <summary>
 		/// Updates the exe in specified paths from GitHub releases page
 		/// </summary>
-		/// <param name="CheckUpdates">if false, it doesn't checkUpdates if exe file is already exist</param>
 		/// <param name="repositoryLink">GitHub repository link from where updates will be downloaded. In any format from "https://github.com/TuTAH1/xml-js-Parser/releases/tag/1.2.0" to just "TuTAH1/xml-js-Parser" (both variants will give the same result)</param>
 		/// <param name="ProgramExePath">Path of physical exe file that should be updated</param>
 		/// <param name="Unpack">Should archives be unpacked while placing in </param>
 		/// <param name="GitHubFilenameRegex">regex of the filename of the release</param>
 		/// <param name="TempFolder">Leave GitHub release files in ./Temp. Don't Forget to DELETE TEMP folder after performing needed operations</param>
 		/// <param name="ArchiveIgnoreFileList">List of files that shouldn't extracted from downloaded archive. If null, all files will be extracted</param>
-		/// <param name="ReverseArchiveFileList"></param>
+		/// <param name="ReverseArchiveFileList">Turns Blacklist into whitelist if true</param>
 		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
 		/// <returns></returns>
-		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string repositoryLink, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool ReverseGithubFilenameRegex = false, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillRelatedProcesses = false)
+		public static async Task<UpdateResult> checkSoftwareUpdates(UpdateMode UpdateMode, string repositoryLink, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool ReverseGithubFilenameRegex = false, bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool KillRelatedProcesses = false)
 		{
 			string[] ss = repositoryLink.RemoveFrom(TypesFuncs.Side.Start, "https://", "github.com/").Split("/");
 			if (ss.Length < 2) throw new ArgumentException("Can't get username and repName from " + repositoryLink);
-			return await checkSoftwareUpdates(CheckUpdates, ss[0], ss[1], ProgramExePath, UpdateQuestion, Unpack, GitHubFilenameRegex,ReverseGithubFilenameRegex, TempFolder, ArchiveIgnoreFileList, ReverseArchiveFileList, KillRelatedProcesses);
+			return await checkSoftwareUpdates(UpdateMode, ss[0], ss[1], ProgramExePath, UpdateQuestion, Unpack, GitHubFilenameRegex,ReverseGithubFilenameRegex, TempFolder, ArchiveIgnoreFileList, ReverseArchiveFileList, KillRelatedProcesses);
 		}
 
 		/// <summary>
 		/// Updates the exe in specified paths from GitHub releases page
 		/// </summary>
-		/// <param name="CheckUpdates">if false, it doesn't checkUpdates if exe file is already exist</param>
 		/// /// <param name="author">Repository author id (example: TuTAH1)</param>
 		/// <param name="repName">Repository name (example: SteamVR-OculusDash-Switcher)</param>
 		/// <param name="ProgramExePath">Path of physical exe file that should be updated</param>
@@ -159,10 +170,10 @@ namespace Titanium
 		/// <param name="GitHubFilenameRegex">regex of the filename of the release</param>
 		/// <param name="TempFolder">Leave GitHub release files in ./Temp. Don't Forget to DELETE TEMP folder after performing needed operations</param>
 		/// <param name="ArchiveIgnoreFileList">List of files that shouldn't extracted from downloaded archive. If null, all files will be extracted</param>
-		/// <param name="ReverseArchiveFileList"></param>
+		/// <param name="ReverseArchiveFileList">Turns Blacklist into whitelist if true</param>
 		/// <param name="UpdateQuestion">Function that will be executed if update found. If this function will return false, update will be canceled</param>
 		/// <returns></returns>
-		public static async Task<UpdateResult> checkSoftwareUpdates(bool CheckUpdates, string author, string repName, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool ReverseGithubFilenameRegex = false,  bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool? KillRelatedProcesses = false)
+		public static async Task<UpdateResult> checkSoftwareUpdates(UpdateMode UpdateMode, string author, string repName, string ProgramExePath, Func<bool> UpdateQuestion = default, bool Unpack = true, Regex? GitHubFilenameRegex = null, bool ReverseGithubFilenameRegex = false,  bool TempFolder = false, Regex[] ArchiveIgnoreFileList = null, bool ReverseArchiveFileList = false, bool? KillRelatedProcesses = false)
 
 		{
 			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -179,25 +190,24 @@ namespace Titanium
 			
 			bool fileExist = File.Exists(ProgramExePath);
 
-			if (!fileExist)
+			if (UpdateMode!= UpdateMode.Check && !fileExist || UpdateMode == UpdateMode.Replace)
 			{
 				await DownloadLastest().ConfigureAwait(false);
 				return result.Change(Status.Downloaded);
 			}
-			else if (CheckUpdates)
+			else if (UpdateMode is UpdateMode.Update or UpdateMode.Check)
 			{
 				var currentVersion = FileVersionInfo.GetVersionInfo(ProgramExePath);
 				if (currentVersion is null) 
 					throw new InvalidOperationException("Product version field is empty");
 
-				//:If current file's version is lower than in github, download lastest from github
-				if (relVersion > Version.Parse(currentVersion.ProductVersion!))
-				{
-					if (UpdateQuestion == default || !UpdateQuestion()) 
-						return result;
-					await DownloadLastest().ConfigureAwait(false);
-					return result.Change(Status.Updated);
-				}
+				//:If current file's version is higher than in github, don't do anything
+				if (UpdateMode == UpdateMode.Check || relVersion <= Version.Parse(currentVersion.ProductVersion!)) return result;
+
+				if (UpdateQuestion == default || !UpdateQuestion()) 
+					return result;
+				await DownloadLastest().ConfigureAwait(false);
+				return result.Change(Status.Updated);
 			}
 			return result;
 

@@ -9,14 +9,23 @@ namespace xml_js_Parser_Updater
 		///  The main entry point for the application.
 		/// </summary>
 		[STAThread]
-		static async Task Main()
+		static async Task Main(string[] args)
 		{
 			//: To customize application configuration such as set high DPI settings or default font,
 			//: see https://aka.ms/applicationconfiguration.
 
+			var updateMode = args.Length == 0 ? GitHub.UpdateMode.Update :
+				args.Contains("-download") ? GitHub.UpdateMode.Download :
+				args.Contains("-replace") || args.Contains("-force") ? GitHub.UpdateMode.Replace :
+				GitHub.UpdateMode.Update;
+
+#if DEBUG
+	updateMode = GitHub.UpdateMode.Replace;	
+#endif
+
 			//MessageBox.Show("test");
 			ApplicationConfiguration.Initialize();
-			ErrorTaskDialog.InitializeDictionary
+			ErrorTaskDialog.InitializeDictionary //: Exception messagebox initialization 
 			(			
 				"Открыть справку Microsoft",
 				"Скопировать текст ошибки в буфер обмена", 
@@ -26,9 +35,9 @@ namespace xml_js_Parser_Updater
 			);
 			try
 			{
-				var upd = new FormUpdater();
-				Task.Run(() => upd.ShowDialog());
-				await Task.Run(() => Updater.Update(upd)).ConfigureAwait(false);
+				var formUpdater = new FormUpdater();
+				Task.Run(() => formUpdater.ShowDialog());
+				await Task.Run(() => Updater.Update(formUpdater, updateMode)).ConfigureAwait(false);
 				//upd.Close();
 			}
 			catch (Exception e)

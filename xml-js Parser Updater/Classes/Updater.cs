@@ -11,14 +11,14 @@ namespace xml_js_Parser.Classes
 	public static class Updater
 	{
 
-		public static async Task Update(FormUpdater ProgressForm)
+		public static async Task Update(FormUpdater ProgressForm, GitHub.UpdateMode UpdateMode = GitHub.UpdateMode.Update)
 		{
 			//var UpdaterForm = await Task.Run(() => new FormUpdater("Установка обновлений..."));
 			var updateResult = new GitHub.UpdateResult();
 
 			try
 			{
-				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates(true, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
+				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates(UpdateMode, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
 				{
 					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)\n\n Описание обновления:\n" + updateResult.ReleaseDiscription, "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
 					if (result) Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);

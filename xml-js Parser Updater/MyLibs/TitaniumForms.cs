@@ -82,7 +82,8 @@ namespace Titanium
 			return screenRectangle.Top - F.Top;
 		}
 
-		public static int GetWindowPadding(this Form F, Orientation Side) => (int)((Side == Orientation.Horizontal? 6 : 5) * (F.DeviceDpi/96.0));
+		public static int GetWindowPadding(this Form F, Orientation Side
+			) => (int)((Side == Orientation.Horizontal? 6 : 5) * (F.DeviceDpi/96.0));
 
 		public static Size MeasureText(Label l) => TextRenderer.MeasureText(l.Text,l.Font);
 
