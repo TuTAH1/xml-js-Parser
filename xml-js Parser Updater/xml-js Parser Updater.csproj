@@ -30,6 +30,10 @@
   <ItemGroup>
     <Content Include="Updater.ico" />
   </ItemGroup>
+	
+	<ItemGroup>
+		<None Include="$(SolutionDir)Файлы программы\**" CopyToOutputDirectory="PreserveNewest" LinkBase="\" />
+	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="0.17.1" />

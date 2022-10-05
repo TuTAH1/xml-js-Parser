@@ -15,6 +15,7 @@ using ICSharpCode.SharpZipLib.Zip;
 using Octokit;
 using static Titanium.Classes;
 using FileMode = System.IO.FileMode;
+using Octokit.Internal;
 
 namespace Titanium
 {
@@ -102,6 +103,8 @@ namespace Titanium
 			Updated,
 			NoAction
 		}
+		
+		public static string ProxyAddress = "auto";
 
 		public class UpdateResult
 		{
@@ -179,7 +182,16 @@ namespace Titanium
 			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 			KillRelatedProcesses ??= !TempFolder;
 
-			var github = new GitHubClient(new ProductHeaderValue("Titanium-GithubSoftwareUpdater"));
+			WebProxy proxy = ProxyAddress == "auto"? (WebProxy)HttpClient.DefaultProxy : new WebProxy(ProxyAddress);
+
+			if(proxy.Address==null) {
+
+			}
+			// this is the core connection
+			var connection = new Connection(new ProductHeaderValue("Titanium-GithubSoftwareUpdater"),
+			new HttpClientAdapter(() => HttpMessageHandlerFactory.CreateDefault(proxy)));
+
+			var github = new GitHubClient(connection);
 			var release = await github.Repository.Release.GetLatest(author, repName).ConfigureAwait(false);
 			Version? relVersion = null;
 			try

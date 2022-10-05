@@ -797,7 +797,7 @@ namespace Titanium {
 				//if (Start < 0) throw new ArgumentOutOfRangeException(nameof(Start),Start,null);
 				if (Start > End) throw new ArgumentOutOfRangeException(nameof(Start),Start,$"start ({Start}) is be bigger than end ({End})");
 				if (End > s.Length) End = s.Length-1;
-				return s.Substring(Start, (End - Start)+1);
+				return s.Substring(Start, (End - Start));
 			}
 
 			/// <summary>

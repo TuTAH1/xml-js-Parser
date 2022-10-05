@@ -1,0 +1,4 @@
+﻿[*.cs]
+
+# CS8629: Тип значения, допускающего NULL, может быть NULL.
+dotnet_diagnostic.CS8629.severity = none

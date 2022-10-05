@@ -11,14 +11,49 @@ namespace xml_js_Parser.Classes
 	public static class Updater
 	{
 
-		public static async Task Update(FormUpdater ProgressForm, GitHub.UpdateMode UpdateMode = GitHub.UpdateMode.Update)
+		public static async Task Update(FormUpdater ProgressForm, GitHub.UpdateMode? UpdateMode = null)
 		{
 			//var UpdaterForm = await Task.Run(() => new FormUpdater("Установка обновлений..."));
 			var updateResult = new GitHub.UpdateResult();
 
 			try
 			{
-				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates(UpdateMode, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
+				try 
+				{
+					Task.Run(() => ProgressForm.ToLabel("Чтение конигурации")).ConfigureAwait(false);
+					var updaterConfig = File.ReadAllText("Updater.cfg");
+					foreach (var r in updaterConfig.RemoveAll("\r").Split("\n")) {
+						try {
+							var param = r.Slice(0,";", true, LastEnd: false).Split(":", StringSplitOptions.TrimEntries);
+							if(param.Length>0 && param[0] == "") continue;
+							if(param.Length!=2) throw new IndexOutOfRangeException("Неверный синтакс параметра");
+							switch(param[0]) {
+								case "proxy": 
+									GitHub.ProxyAddress = param[1];
+								break;
+
+								case "mode":
+									UpdateMode = (GitHub.UpdateMode) Enum.Parse(typeof(GitHub.UpdateMode), param[1]);
+								break;
+								case "ignoreFilesRegexs": 
+									//TODO: ignoreFilesRegexs
+								default: throw new ArgumentOutOfRangeException(nameof(param), "Немзвестный параметр");
+							}
+						
+						}
+						catch (Exception e) {
+							e.ShowMessageBox("Ошибка при чтении параметра");
+						}
+
+					}
+				}
+				catch (Exception e) 
+				{
+					UpdateMode = GitHub.UpdateMode.Update;
+					e.ShowMessageBox("Ошибка при чтении файла конфигурации");
+				}
+
+				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates((GitHub.UpdateMode)UpdateMode, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
 				{
 					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)\n\n Описание обновления:\n" + updateResult.ReleaseDiscription, "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
 					if (result) Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);
