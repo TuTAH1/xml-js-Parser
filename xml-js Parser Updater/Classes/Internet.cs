@@ -2,20 +2,18 @@
 using System.Net; //для работы с интернетом
 using System.Text;
 using System.Diagnostics;
-using System.Linq;
-using System.Net.Http;
+using System.IO.Compression;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
-using AngleSharp.Html;
 using AngleSharp.Io;
-using AngleSharp.Io.Network;
 using ICSharpCode.SharpZipLib.Zip;
 using Octokit;
 using static Titanium.Classes;
 using FileMode = System.IO.FileMode;
 using Octokit.Internal;
+using Microsoft.Win32;
+using ZipFile = ICSharpCode.SharpZipLib.Zip.ZipFile;
 
 namespace Titanium
 {
@@ -182,14 +180,25 @@ namespace Titanium
 			Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 			KillRelatedProcesses ??= !TempFolder;
 
-			WebProxy proxy = ProxyAddress == "auto"? (WebProxy)HttpClient.DefaultProxy : new WebProxy(ProxyAddress);
+			string registyProxyAddress = @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings";
+			string? proxyConfigScriptLink = Registry.GetValue(registyProxyAddress,"AutoConfigURL", null)?.ToString();
+			bool proxyEnabled = Registry.GetValue(registyProxyAddress, "ProxyEnable",null)?.ToString() == 1.ToString() || !proxyConfigScriptLink.IsNullOrEmpty();
 
-			if(proxy.Address==null) {
+			HttpClientHandler clientHandler = new HttpClientHandler();
+			clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+			var webProxy = new WebProxy();
 
-			}
-			// this is the core connection
-			var connection = new Connection(new ProductHeaderValue("Titanium-GithubSoftwareUpdater"),
-			new HttpClientAdapter(() => HttpMessageHandlerFactory.CreateDefault(proxy)));
+			clientHandler.Proxy = ProxyAddress switch
+			{
+				"auto" => (HttpClient.DefaultProxy)
+				,"no" => null
+				,_=> new WebProxy(new Uri(ProxyAddress))
+			};
+
+		
+			var connection = new Connection(
+				new ProductHeaderValue("Titanium-GithubSoftwareUpdater"),
+				new HttpClientAdapter(() => clientHandler));
 
 			var github = new GitHubClient(connection);
 			var release = await github.Repository.Release.GetLatest(author, repName).ConfigureAwait(false);
@@ -228,7 +237,7 @@ namespace Titanium
 
 				var gitHubFiles = release.Assets;
 
-				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles),"No any files found in the release");
+				if (!gitHubFiles.Any()) throw new ArgumentNullException(nameof(gitHubFiles), "No any files found in the release");
 
 				gitHubFiles = (
 					from file in gitHubFiles 

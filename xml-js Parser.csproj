@@ -31,12 +31,13 @@
 	</ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="0.17.1" />
     <PackageReference Include="Costura.Fody" Version="5.7.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.18.0" />
-    <PackageReference Include="Fody" Version="6.6.3">
+    <PackageReference Include="Fody" Version="6.6.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

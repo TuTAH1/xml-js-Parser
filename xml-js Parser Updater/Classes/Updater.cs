@@ -11,20 +11,27 @@ namespace xml_js_Parser.Classes
 	public static class Updater
 	{
 
-		public static async Task Update(FormUpdater ProgressForm, GitHub.UpdateMode? UpdateMode = null)
+		public static async Task Update(FormUpdater ProgressForm, GitHub.UpdateMode? UpdateMode = null, Func<Process,bool>? KillProcIf = null)
 		{
 			//var UpdaterForm = await Task.Run(() => new FormUpdater("Установка обновлений..."));
+			KillProcIf ??= (proc) => false;
+
 			var updateResult = new GitHub.UpdateResult();
+			var labelTask = Task.Run(() => ProgressForm.ToLabel("Чтение конигурации")).ConfigureAwait(false);
+			
+			List<string> IgnoreList = new(); //TODO: RegEx
+			List<string> RenameList = new();
 
 			try
 			{
-				try 
+				try //! Чтение конфигурации
 				{
-					Task.Run(() => ProgressForm.ToLabel("Чтение конигурации")).ConfigureAwait(false);
 					var updaterConfig = File.ReadAllText("Updater.cfg");
+					// Updater.cfg
+					// param: value line ; comment
 					foreach (var r in updaterConfig.RemoveAll("\r").Split("\n")) {
 						try {
-							var param = r.Slice(0,";", true, LastEnd: false).Split(":", StringSplitOptions.TrimEntries);
+							var param = r.Slice(0,";", true, LastEnd: false).Split(":", 2, StringSplitOptions.TrimEntries);
 							if(param.Length>0 && param[0] == "") continue;
 							if(param.Length!=2) throw new IndexOutOfRangeException("Неверный синтакс параметра");
 							switch(param[0]) {
@@ -35,8 +42,12 @@ namespace xml_js_Parser.Classes
 								case "mode":
 									UpdateMode = (GitHub.UpdateMode) Enum.Parse(typeof(GitHub.UpdateMode), param[1]);
 								break;
-								case "ignoreFilesRegexs": 
-									//TODO: ignoreFilesRegexs
+								case "ignore":
+									IgnoreList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries));
+									break;
+								case "rename": 
+									RenameList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries));
+									break;
 								default: throw new ArgumentOutOfRangeException(nameof(param), "Немзвестный параметр");
 							}
 						
@@ -53,10 +64,16 @@ namespace xml_js_Parser.Classes
 					e.ShowMessageBox("Ошибка при чтении файла конфигурации");
 				}
 
+				await labelTask;
+				labelTask = Task.Run(() => ProgressForm.ToLabel("Проверка обновлений...")).ConfigureAwait(false);
+
+				//! Проверка и скачивание обновления 
 				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates((GitHub.UpdateMode)UpdateMode, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
 				{
 					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)\n\n Описание обновления:\n" + updateResult.ReleaseDiscription, "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
-					if (result) Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);
+					if (result) 
+						labelTask = Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);
+						
 
 					return result;
 				},
@@ -67,14 +84,15 @@ namespace xml_js_Parser.Classes
 				e.ShowMessageBox("Ошибка при скачивании файла обновления");
 			}
 
-			if (updateResult.status != GitHub.Status.NoAction)
+			if (updateResult.status != GitHub.Status.NoAction) //! Установка обновления
 			{
 				try
 				{
-					Task.Run(() => ProgressForm.ToLabel("Установка обновления")).ConfigureAwait(false);
+					await labelTask;
+					labelTask = Task.Run(() => ProgressForm.ToLabel("Установка обновления")).ConfigureAwait(false);
 				} catch (Exception){}
 				try
-				{
+				{ //! Перезапись словаря и создание бекапов
 					if (updateResult.ReleaseDiscription.Contains("!Dic"))
 					{
 						var dicFolder = "Файлы программы\\";
@@ -99,7 +117,7 @@ namespace xml_js_Parser.Classes
 					e.ShowMessageBox("Ошибка обновления словаря");
 				}
 
-				try
+				try //! Убийство процессаов
 				{
 					var procList = new List<Process>();
 					var pathList = new List<string>();
@@ -108,9 +126,9 @@ namespace xml_js_Parser.Classes
 						try
 						{
 							string? procPath = proc?.MainModule?.FileName;
-							if (procPath != Environment.ProcessPath
-							    && procPath?.Slice(0, "\\", LastEnd: true) == Environment.CurrentDirectory
-							    && proc?.MainModule?.FileVersionInfo.FileDescription == "xml-js Parser")
+							if (procPath != Environment.ProcessPath //: Not own process
+								&& proc?.MainModule?.FileVersionInfo?.FileDescription != Process.GetProcessById(Environment.ProcessId).MainModule?.FileVersionInfo?.FileDescription
+							    && KillProcIf(proc)) //: Custom conditions
 							{
 								procList.Add(proc);
 								pathList.Add(procPath);
@@ -120,12 +138,24 @@ namespace xml_js_Parser.Classes
 					
 					}
 
-					procList.ForEach(x => x.Kill()); //: Kill all processes in this folder
+					var errorList = new List<Exception>();
+
+					foreach (var x in procList)
+						try
+						{
+							x.Kill();
+						}
+						catch (Exception e)
+						{
+							errorList.Add(new Exception($"Can't kill {x.ProcessName}"));
+						}
+
+
 
 					IO.MoveAllTo("Temp", "", true, false, new List<Regex>(new []{new Regex(@".*\\Updater\..*")}));
 
 					foreach (var x in pathList) 
-						try { Process.Start(x); } catch (Exception){}
+						try { Process.Start(x); } catch (Exception){errorList.Add(new Exception($"Can't start {x}"));}
 
 				}
 				catch (Exception e)

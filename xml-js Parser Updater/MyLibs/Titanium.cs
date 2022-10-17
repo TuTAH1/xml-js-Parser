@@ -796,7 +796,7 @@ namespace Titanium {
 				if (Start < 0) Start = s.Length + Start;
 				//if (Start < 0) throw new ArgumentOutOfRangeException(nameof(Start),Start,null);
 				if (Start > End) throw new ArgumentOutOfRangeException(nameof(Start),Start,$"start ({Start}) is be bigger than end ({End})");
-				if (End > s.Length) End = s.Length-1;
+				if (End > s.Length) End = s.Length;
 				return s.Substring(Start, (End - Start));
 			}
 
@@ -1624,6 +1624,7 @@ namespace Titanium {
 		public static void CopyAll(string SourcePath, string TargetPath, bool KillRelatedProcesses = false, List<Regex> ExceptList = null, bool DisableSyntaxCheck = false)
 		{
 			ExceptList ??= new List<Regex>();
+			var ErrorList = new List<Exception>();
 			if (!DisableSyntaxCheck)
 			{
 				SourcePath = SourcePath.Replace("/", "\\").Add("\\");
@@ -1633,18 +1634,36 @@ namespace Titanium {
 			//Now Create all of the directories
 			foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
 			{
-				if (ExceptList.Any(x => x.Match(dirPath).Success))
-				Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
+				try
+				{
+					if (ExceptList.Any(x => x.Match(dirPath).Success))
+						Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
+				}
+				catch (Exception e)
+				{
+					ErrorList.Add(e);
+				}
+				
 			}
 
 			//Copy all the files & Replaces any files with the same name
 			foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
 			{
-				var destination = newPath.Replace(SourcePath, TargetPath);
-				if (KillRelatedProcesses && destination.EndsWith(".exe"))
-					TypesFuncs.KillProcesses(Path: destination);
-				File.Copy(newPath, destination , true);
+				try
+				{
+					var destination = newPath.Replace(SourcePath, TargetPath);
+					if (KillRelatedProcesses && destination.EndsWith(".exe"))
+						TypesFuncs.KillProcesses(Path: destination);
+					File.Copy(newPath, destination , true);
+				}
+				catch (Exception e)
+				{
+					ErrorList.Add(e);
+				}
+				
 			}
+
+			if (ErrorList.Count > 0) throw new AggregateException("Unable to copy files" ,ErrorList);
 		}
 
 		public static void CopyAllTo(this DirectoryInfo di, string TargetPath, bool KillRelatedProcesses = false, List<Regex> ExceptList = null, bool DisableSyntaxCheck = false)

@@ -43,7 +43,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Octokit" Version="3.0.0" />
+    <PackageReference Include="Fody" Version="6.6.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Octokit" Version="4.0.0" />
     <PackageReference Include="Ookii.Dialogs.WinForms" Version="4.0.0" />
     <PackageReference Include="SharpZipLib" Version="1.4.0" />
   </ItemGroup>

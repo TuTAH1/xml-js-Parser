@@ -8,7 +8,13 @@ namespace xml_js_Parser_Updater
 			lbStatus.Text = Text ?? "Проверка обновлений...";
 		}
 
-		public void ToLabel(string text) => lbStatus.Invoke(() => lbStatus.Text = text);
+		public void ToLabel(string text)
+		{
+			if (lbStatus.IsHandleCreated)
+				lbStatus.Invoke(() => lbStatus.Text = text);
+			else
+				lbStatus.HandleCreated += (Sender, Args) => ToLabel(text);
+		}
 
 		public void CloseAsync() => Invoke(Close);
 	}
