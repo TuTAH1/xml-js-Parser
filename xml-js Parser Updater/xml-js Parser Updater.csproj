@@ -1,34 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
-    <RootNamespace>xml_js_Parser.Updater</RootNamespace>
-    <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <BaseOutputPath>.\..\bin</BaseOutputPath>
-    <AssemblyName>Updater</AssemblyName>
-    <ApplicationIcon>Updater.ico</ApplicationIcon>
-    <SignAssembly>False</SignAssembly>
-    <AssemblyVersion>1.2.0</AssemblyVersion>
-    <FileVersion>1.2.0</FileVersion>
+	<OutputType>WinExe</OutputType>
+	<TargetFramework>net6.0-windows</TargetFramework>
+	<RootNamespace>xml_js_Parser.Updater</RootNamespace>
+	<Nullable>enable</Nullable>
+	<UseWindowsForms>true</UseWindowsForms>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<BaseOutputPath>.\..\bin</BaseOutputPath>
+	<AssemblyName>Updater</AssemblyName>
+	<ApplicationIcon>Updater.ico</ApplicationIcon>
+	<SignAssembly>False</SignAssembly>
+	<AssemblyVersion>1.3.0</AssemblyVersion>
+	<FileVersion>1.3.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <WarningLevel>9999</WarningLevel>
+	<WarningLevel>9999</WarningLevel>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <WarningLevel>9999</WarningLevel>
+	<WarningLevel>9999</WarningLevel>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="MyLibs\TitaniumConsole.cs" />
+	<Compile Remove="MyLibs\TitaniumConsole.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Updater.ico" />
+	<ItemGroup>
+	<Content Include="Updater.ico" />
   </ItemGroup>
 	
 	<ItemGroup>
@@ -36,20 +36,20 @@
 	</ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="0.17.1" />
-    <PackageReference Include="AngleSharp.Io" Version="0.17.0" />
-    <PackageReference Include="AngleSharp.Xml" Version="0.17.0" />
-    <PackageReference Include="Costura.Fody" Version="5.7.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Fody" Version="6.6.4">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Octokit" Version="4.0.0" />
-    <PackageReference Include="Ookii.Dialogs.WinForms" Version="4.0.0" />
-    <PackageReference Include="SharpZipLib" Version="1.4.0" />
+	<PackageReference Include="AngleSharp" Version="0.17.1" />
+	<PackageReference Include="AngleSharp.Io" Version="0.17.0" />
+	<PackageReference Include="AngleSharp.Xml" Version="0.17.0" />
+	<PackageReference Include="Costura.Fody" Version="5.7.0">
+	  <PrivateAssets>all</PrivateAssets>
+	  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	</PackageReference>
+	<PackageReference Include="Fody" Version="6.6.4">
+	  <PrivateAssets>all</PrivateAssets>
+	  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	</PackageReference>
+	<PackageReference Include="Octokit" Version="4.0.0" />
+	<PackageReference Include="Ookii.Dialogs.WinForms" Version="4.0.0" />
+	<PackageReference Include="SharpZipLib" Version="1.4.0" />
   </ItemGroup>
 
 </Project>

@@ -17,5 +17,11 @@ namespace xml_js_Parser_Updater
 		}
 
 		public void CloseAsync() => Invoke(Close);
+
+		protected override void OnClosed(EventArgs e)
+		{
+			if (Directory.Exists("Temp")) Directory.Delete("Temp", true);
+			base.OnClosed(e);
+		}
 	}
 }

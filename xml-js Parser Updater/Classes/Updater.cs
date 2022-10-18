@@ -19,8 +19,8 @@ namespace xml_js_Parser.Classes
 			var updateResult = new GitHub.UpdateResult();
 			var labelTask = Task.Run(() => ProgressForm.ToLabel("Чтение конигурации")).ConfigureAwait(false);
 			
-			List<string> IgnoreList = new(); //TODO: RegEx
-			List<string> RenameList = new();
+			List<Regex> IgnoreList = new();
+			List<string> RenameList = new(); //TODO: RegEx
 
 			try
 			{
@@ -43,7 +43,7 @@ namespace xml_js_Parser.Classes
 									UpdateMode = (GitHub.UpdateMode) Enum.Parse(typeof(GitHub.UpdateMode), param[1]);
 								break;
 								case "ignore":
-									IgnoreList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries));
+									IgnoreList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList().ConvertAll(x => new Regex(x)));
 									break;
 								case "rename": 
 									RenameList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries));
@@ -121,7 +121,7 @@ namespace xml_js_Parser.Classes
 				{
 					var procList = new List<Process>();
 					var pathList = new List<string>();
-					foreach (var proc in Process.GetProcesses())
+					foreach (var proc in Process.GetProcesses()) //: Добавление жертв-процессов в список
 					{
 						try
 						{
@@ -143,7 +143,7 @@ namespace xml_js_Parser.Classes
 					foreach (var x in procList)
 						try
 						{
-							x.Kill();
+							x.Kill(); //: Казнь
 						}
 						catch (Exception e)
 						{
@@ -151,10 +151,10 @@ namespace xml_js_Parser.Classes
 						}
 
 
-
+						//! Перемещение скачанного обновления (и замена файлов)
 					IO.MoveAllTo("Temp", "", true, false, new List<Regex>(new []{new Regex(@".*\\Updater\..*")}));
 
-					foreach (var x in pathList) 
+					foreach (var x in pathList) //: Воскрешение убитых процессов
 						try { Process.Start(x); } catch (Exception){errorList.Add(new Exception($"Can't start {x}"));}
 
 				}
@@ -166,7 +166,13 @@ namespace xml_js_Parser.Classes
 
 				ProgressForm.CloseAsync();
 
-				MessageBox.Show("Обновление завершено");
+				MessageBox.Show("Обновление завершено. Что нового:\n\n" + updateResult.ReleaseDiscription);
+			}
+			else
+			{
+#if DEBUG
+MessageBox.Show("Обновление отменено");		
+#endif
 			}
 		}
 		

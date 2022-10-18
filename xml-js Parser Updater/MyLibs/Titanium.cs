@@ -541,92 +541,7 @@ namespace Titanium {
 
 			#endregion
 
-			#region List
-
-							/// <summary>
-							/// Случайным образом перемешивает массив
-							/// </summary>
-							public static List<T> RandomShuffle<T>(this IEnumerable<T> list)
-							{
-								Random random = new Random();
-								var shuffle = new List<T>(list);
-								for (var i = shuffle.Count() - 1; i >= 1; i--)
-								{
-									int j = random.Next(i + 1);
-
-									var tmp = shuffle[j];
-									shuffle[j] = shuffle[i];
-									shuffle[i] = tmp;
-								}
-								return shuffle;
-							}
-
-							public static List<T> RandomShuffle<T>(this IEnumerable<T> list, Random random)
-							{
-								var shuffle = new List<T>(list);
-								for (var i = shuffle.Count() - 1; i >= 1; i--)
-								{
-									int j = random.Next(i + 1);
-
-									var tmp = shuffle[j];
-									shuffle[j] = shuffle[i];
-									shuffle[i] = tmp;
-								}
-								return shuffle;
-							}
-
-							public static List<int> RandomList(int start, int count)
-							{
-								List<int> List = new List<int>(count);
-								List<bool> Empty = new List<bool>();
-								for (int i = 0; i < count; i++)
-								{
-									List.Add(0);
-									Empty.Add(true);
-								}
-								Random Random = new Random();
-
-								int End = start + count;
-								for (int i = start; i < End;)
-								{
-									int Index = Random.Next(0, count); //C#-повский рандом гавно. Надо заменить чем-то
-
-									if (Empty[Index])
-									{
-										List[Index] = i;
-										Empty[Index] = false;
-										i++;
-
-									}
-								}
-
-								return List;
-							}
-
-							public static T Pop<T>(this List<T> list)
-							{
-								T r = list[^1];
-								list.RemoveAt(list.Count-1);
-								return r;
-							}
-		
-							public static void Swap<T>(this List<T> list, int aIndex, int bIndex)
-							{
-								T value = list[aIndex];
-								list[aIndex] = list[bIndex];
-								list[bIndex] = value;
-							}
-
-							public static void Swap<T>(this T[] list, int aIndex, int bIndex)
-							{
-								T value = list[aIndex];
-								list[aIndex] = list[bIndex];
-								list[bIndex] = value;
-							}
-
-							#endregion
-
-		#endregion
+			#endregion
 
 
 		#region OtherTypeFuncs
@@ -1277,6 +1192,87 @@ namespace Titanium {
 
 			#region Enumerable
 
+			
+							/// <summary>
+							/// Случайным образом перемешивает массив
+							/// </summary>
+							public static List<T> RandomShuffle<T>(this IEnumerable<T> list)
+							{
+								Random random = new Random();
+								var shuffle = new List<T>(list);
+								for (var i = shuffle.Count() - 1; i >= 1; i--)
+								{
+									int j = random.Next(i + 1);
+
+									var tmp = shuffle[j];
+									shuffle[j] = shuffle[i];
+									shuffle[i] = tmp;
+								}
+								return shuffle;
+							}
+
+							public static List<T> RandomShuffle<T>(this IEnumerable<T> list, Random random)
+							{
+								var shuffle = new List<T>(list);
+								for (var i = shuffle.Count() - 1; i >= 1; i--)
+								{
+									int j = random.Next(i + 1);
+
+									var tmp = shuffle[j];
+									shuffle[j] = shuffle[i];
+									shuffle[i] = tmp;
+								}
+								return shuffle;
+							}
+
+							public static List<int> RandomList(int start, int count)
+							{
+								List<int> List = new List<int>(count);
+								List<bool> Empty = new List<bool>();
+								for (int i = 0; i < count; i++)
+								{
+									List.Add(0);
+									Empty.Add(true);
+								}
+								Random Random = new Random();
+
+								int End = start + count;
+								for (int i = start; i < End;)
+								{
+									int Index = Random.Next(0, count); //C#-повский рандом гавно. Надо заменить чем-то
+
+									if (Empty[Index])
+									{
+										List[Index] = i;
+										Empty[Index] = false;
+										i++;
+
+									}
+								}
+
+								return List;
+							}
+
+							public static T Pop<T>(this List<T> list)
+							{
+								T r = list[^1];
+								list.RemoveAt(list.Count-1);
+								return r;
+							}
+		
+							public static void Swap<T>(this List<T> list, int aIndex, int bIndex)
+							{
+								T value = list[aIndex];
+								list[aIndex] = list[bIndex];
+								list[bIndex] = value;
+							}
+
+							public static void Swap<T>(this T[] list, int aIndex, int bIndex)
+							{
+								T value = list[aIndex];
+								list[aIndex] = list[bIndex];
+								list[bIndex] = value;
+							}
 			public static int IndexOf<T>(this T[] array, T value) => Array.IndexOf(array, value);
 
 			public static T[][] Split<T>(this T[] array, int arraysCount)
@@ -1634,10 +1630,10 @@ namespace Titanium {
 			//Now Create all of the directories
 			foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
 			{
+				if (ExceptList.IsMatchAny(dirPath)) continue;
 				try
 				{
-					if (ExceptList.Any(x => x.Match(dirPath).Success))
-						Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
+					Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
 				}
 				catch (Exception e)
 				{
@@ -1649,6 +1645,7 @@ namespace Titanium {
 			//Copy all the files & Replaces any files with the same name
 			foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
 			{
+				if (ExceptList.IsMatchAny(newPath)) continue;
 				try
 				{
 					var destination = newPath.Replace(SourcePath, TargetPath);
@@ -1682,6 +1679,7 @@ namespace Titanium {
 			{
 				foreach (var dir in di.GetDirectories())
 				{
+					if (ExceptList.IsMatchAny(dir.FullName))
 					dir.Delete(true);
 				}
 			}

@@ -6,14 +6,10 @@
     <RootNamespace>xml_js_Parser</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <Version>1.3.0.2</Version>
+    <Version>1.3.0.3</Version>
     <Authors>Титан</Authors>
-	<GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
-	<OutputType>Exe</OutputType>
+	<!--<GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>-->
 	<Platforms>AnyCPU;x64</Platforms>
-	<PublishReadyToRun>true</PublishReadyToRun>
-	<PublishSingleFile>true</PublishSingleFile>
-	<PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
 
 	<ItemGroup>
