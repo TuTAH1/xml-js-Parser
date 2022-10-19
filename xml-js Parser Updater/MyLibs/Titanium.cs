@@ -645,61 +645,117 @@ namespace Titanium {
 			/// <param name="Offset">Positive is right, negative is left. Will be sliced if out of range</param>
 			/// <returns></returns>
 			public static string FormatString(this string s, int FixedLength, Positon Align, char Filter = ' ', int Offset = 0)
+			{
+				if (s.Length<FixedLength)
+				{
+					int NumberOfFillerSymbols = FixedLength - s.Length;
+					switch (Align)
 					{
-						if (s.Length<FixedLength)
+						case Positon.left:
 						{
-							int NumberOfFillerSymbols = FixedLength - s.Length;
-							switch (Align)
-							{
-								case Positon.left:
-								{
-									Offset = Offset.FitPositive(NumberOfFillerSymbols);
-									NumberOfFillerSymbols -= Offset;
-									s = Filter.Multiply(Offset) + s + Filter.Multiply(NumberOfFillerSymbols);
-								}
-									break;
-								case Positon.center:
-								{
-									int firstHalf = NumberOfFillerSymbols.IsEven()? NumberOfFillerSymbols/2 : Offset>0? NumberOfFillerSymbols/2 : NumberOfFillerSymbols/2 +1,
-										secondHalf = NumberOfFillerSymbols-firstHalf;
-									if (NumberOfFillerSymbols.IsOdd()) Offset += (Offset > 0) ? -1 : 1;
+							Offset = Offset.FitPositive(NumberOfFillerSymbols);
+							NumberOfFillerSymbols -= Offset;
+							s = Filter.Multiply(Offset) + s + Filter.Multiply(NumberOfFillerSymbols);
+						}
+							break;
+						case Positon.center:
+						{
+							int firstHalf = NumberOfFillerSymbols.IsEven()? NumberOfFillerSymbols/2 : Offset>0? NumberOfFillerSymbols/2 : NumberOfFillerSymbols/2 +1,
+								secondHalf = NumberOfFillerSymbols-firstHalf;
+							if (NumberOfFillerSymbols.IsOdd()) Offset += (Offset > 0) ? -1 : 1;
 									
-									firstHalf += Offset;
-									secondHalf -= Offset;
-									s = Filter.Multiply(firstHalf) + s + Filter.Multiply(secondHalf);
-								}
-									break;
-								case Positon.right:
-								{
-									Offset.FitNegative(NumberOfFillerSymbols);
-									NumberOfFillerSymbols += Offset;
-									s = Filter.Multiply(NumberOfFillerSymbols) + s + Filter.Multiply(Offset);
-								}
-									break;
-							}
+							firstHalf += Offset;
+							secondHalf -= Offset;
+							s = Filter.Multiply(firstHalf) + s + Filter.Multiply(secondHalf);
 						}
-						else if (s.Length>FixedLength)
+							break;
+						case Positon.right:
 						{
-							int Eindex = s.LastIndexOf('E');
-
-							if (Eindex>0)
-							{ //если в строке есть Е+хх
-								string E = s.TrimStart('E');
-								s=s.Substring(0, FixedLength-E.Length);
-								s+=E;
-							}
-							else
-							{
-								s=s.Substring(0, FixedLength);
-							}
+							Offset.FitNegative(NumberOfFillerSymbols);
+							NumberOfFillerSymbols += Offset;
+							s = Filter.Multiply(NumberOfFillerSymbols) + s + Filter.Multiply(Offset);
 						}
-						return s;
+							break;
 					}
+				}
+				else if (s.Length>FixedLength)
+				{
+					int Eindex = s.LastIndexOf('E');
+
+					if (Eindex>0)
+					{ //если в строке есть Е+хх
+						string E = s.TrimStart('E');
+						s=s.Substring(0, FixedLength-E.Length);
+						s+=E;
+					}
+					else
+					{
+						s=s.Substring(0, FixedLength);
+					}
+				}
+				return s;
+			}
+
+			/// <summary>
+			/// Inserts <paramref name="Value"/> between <paramref name="Start"> and <paramref name="end"/>
+			/// </summary>
+			/// <param name="s"></param>
+			/// <param name="Value"></param>
+			/// <param name="Start"></param>
+			/// <param name="end"></param>
+			/// <returns></returns>
+			/// <exception cref="ArgumentException"></exception>
+			public static string Insert(this string s, string Value, int Start, int? End = null)
+			{
+				int end=  End?? Start;
+				if (s.IsNullOrEmpty()) return Value;
+				if (Start < 0) Start = s.Length - Start;
+				if (end < 0) end = s.Length - Start;
+				if (Start > end) Swap(ref Start, ref end);
+
+				if (Start < 0 || Start > s.Length) throw new ArgumentException("Incorrect start " + Start, nameof(Start));
+				if (end < 0 || end > s.Length) throw new ArgumentException("Incorrect end " +end, nameof(end));
+
+				return s.Slice(0,Start) + Value + s.Slice(Start);
+			}
 
 			public enum Positon: byte { left,center,right}
 
+			// /// <summary>
+			// /// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>. Same as c# 8's s[start..end] 
+			// /// </summary>
+			// /// <typeparam name="Ts"></typeparam>
+			// /// <typeparam name="Te"></typeparam>
+			// /// <param name="s"></param>
+			// /// <param name="Start"></param>
+			// /// <param name="End"></param>
+			// /// <param name="AlwaysReturnString"></param>
+			// /// <param name="LastStart"></param>
+			// /// <param name="LastEnd"></param>
+			// /// <param name="IncludeStart"></param>
+			// /// <param name="IncludeEnd"></param>
+			// /// <returns></returns>
+			// /// <exception cref=""></exception>
+			// public static string Slice<Ts, Te>(this string s, Ts? Start = default, Te? End = default, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false)
+			// {
+			// 	int start = 0;
+			// 	switch (Start)
+			// 	{
+			// 		case int res:
+			// 			start = res;
+			// 			break;
+			// 		case string res:
+			// 			start = Start == null ? 0 : LastStart ? s.LastIndexOfEnd(res) : s.IndexOfEnd(res); //!TODO: РЕАЛИЗОВАТЬ ОСТАЛЬНЫЕ ТИПЫ
+			// 			break;
+			// 		default:
+			// 			throw new TypeInitializationException(typeof(Ts).FullName, new ArgumentException($"Type of {nameof(Start)} is not supported"));
+			//
+			// 	}
+			// 	if (start < 0) return  AlwaysReturnString? s : null;
+			// }
+
 			/// <summary>
-			/// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>
+			/// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>. Same as c# 8's s[start..end]
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="Start">if negative, counts from end</param>
@@ -1525,6 +1581,21 @@ namespace Titanium {
 			public static bool IsMatchT(this Regex r, string s, int start = 0) => s != null && r.IsMatch(s, start);
 			public static bool IsMatchAny(this IEnumerable<Regex> r, string s, int start = 0) => s != null && r.Any(x => x.IsMatch(s));
 			public static bool IsMatchAll(this IEnumerable<Regex> r, string s, int start = 0) => s != null && r.All(x => x.IsMatch(s));
+			public static Regex Reverse(this Regex r)
+			{
+				var regStr = r.ToString();
+				return regStr.StartsWith(@"^((?!") && regStr.EndsWith(@").)*")? new Regex(regStr[5..^4]) : new Regex(@"^((?!" + r + @").)*");
+			}
+
+			public static List<Regex> ReverseRegexes(this List<Regex> r)
+			{
+				for (int i = 0; i < r.Count; i++)
+				{
+					r[i] = Reverse(r[i]);
+				}
+
+				return r;
+			}
 
 			#endregion
 
@@ -1661,6 +1732,26 @@ namespace Titanium {
 			}
 
 			if (ErrorList.Count > 0) throw new AggregateException("Unable to copy files" ,ErrorList);
+		}
+
+		/// <summary>
+		///  Renames all files in the Directory (not recursive)
+		/// </summary>
+		/// <param name="FolderPath"></param>
+		/// <param name="Rename"> Function where input is file's name (not path) and the output is new file's name</param>
+		/// <param name="ExceptList">Regular expression of filePATHs that won't be renamed</param>
+		public static void RenameAll(string FolderPath, Func<string, string> Rename, List<Regex>? ExceptList = null)
+		{
+			ExceptList ??= new List<Regex>();
+			foreach (var file in Directory.GetFiles(FolderPath))
+			{
+				if(ExceptList.IsMatchAny(file)) continue;
+
+				var fileInfo = new FileInfo(file);
+				var path = fileInfo.Directory.FullName;
+				var fileName = fileInfo.Name;
+				File.Move(file,Path.Combine(path, Rename(fileName)));	
+			}
 		}
 
 		public static void CopyAllTo(this DirectoryInfo di, string TargetPath, bool KillRelatedProcesses = false, List<Regex> ExceptList = null, bool DisableSyntaxCheck = false)

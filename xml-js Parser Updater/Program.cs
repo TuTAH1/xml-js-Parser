@@ -26,6 +26,48 @@ namespace xml_js_Parser_Updater
 				       && proc?.MainModule?.FileVersionInfo.FileDescription == "xml-js Parser"
 				       ;
 			};
+			FormUpdater formUpdater;
+
+			try
+			{
+				formUpdater = new FormUpdater();
+				Task.Run(() => formUpdater.ShowDialog());
+			}
+			catch (Exception e)
+			{
+				e.ShowMessageBox("Ошибка инициализации формы");
+				return;
+			}
+
+			if (args.Contains("-renameself")) 
+			{
+				try
+				{
+					IO.RenameAll("", S => S.Replace("Updater.new", "Updater"));
+					File.Move("Updater.new.exe", "Updater.exe", true);
+					Process.Start("Updater.exe");
+					return;
+				}
+				catch (Exception e)
+				{
+					e.ShowMessageBox("Ошибка обновления Обновлятеля на этапе замены файлов");
+					return;
+				}
+			}
+			else if (args.Contains("-deleterenamer"))
+			{
+				try
+				{
+					File.Delete("Renamer.exe");
+					return;
+				}
+				catch (Exception e)
+				{
+					e.ShowMessageBox("Не удалось удалить остаточные файлы после обновления Обновлятеля");
+					return;
+				}
+				
+			}
 
 			var updateMode = args.Length == 0 ? GitHub.UpdateMode.Update :
 				args.Contains("-download") ? GitHub.UpdateMode.Download :
@@ -48,8 +90,6 @@ namespace xml_js_Parser_Updater
 			);
 			try
 			{
-				var formUpdater = new FormUpdater();
-				Task.Run(() => formUpdater.ShowDialog());
 				await Task.Run(() => Updater.Update(formUpdater, updateMode, KillProcIf)).ConfigureAwait(false);
 				//upd.Close();
 			}

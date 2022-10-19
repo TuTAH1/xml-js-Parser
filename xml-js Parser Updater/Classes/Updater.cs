@@ -19,8 +19,8 @@ namespace xml_js_Parser.Classes
 			var updateResult = new GitHub.UpdateResult();
 			var labelTask = Task.Run(() => ProgressForm.ToLabel("Чтение конигурации")).ConfigureAwait(false);
 			
-			List<Regex> IgnoreList = new();
-			List<string> RenameList = new(); //TODO: RegEx
+			List<Regex> IgnoreList = new List<Regex>() { new Regex(@".*\\Updater\..*") };
+			List<Regex> RenameList =new List<Regex>() { new Regex(@".*\\Updater\..*") };
 
 			try
 			{
@@ -46,7 +46,7 @@ namespace xml_js_Parser.Classes
 									IgnoreList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList().ConvertAll(x => new Regex(x)));
 									break;
 								case "rename": 
-									RenameList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries));
+									RenameList.AddRange(param[1].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList().ConvertAll(x => new Regex(x)));
 									break;
 								default: throw new ArgumentOutOfRangeException(nameof(param), "Немзвестный параметр");
 							}
@@ -68,16 +68,16 @@ namespace xml_js_Parser.Classes
 				labelTask = Task.Run(() => ProgressForm.ToLabel("Проверка обновлений...")).ConfigureAwait(false);
 
 				//! Проверка и скачивание обновления 
-				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates((GitHub.UpdateMode)UpdateMode, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", () =>
-				{
-					bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)\n\n Описание обновления:\n" + updateResult.ReleaseDiscription, "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
-					if (result) 
-						labelTask = Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);
+				updateResult = await Task.Run(() => GitHub.checkSoftwareUpdates((GitHub.UpdateMode)UpdateMode, "github.com/TuTAH1/xml-js-Parser", "xml-js Parser.exe", true, new Regex("^Update"), true, true, KillRelatedProcesses:true, AskUpdate:
+					(updateResult) =>
+					{
+						bool result = MessageBox.Show("Найдена новая версия программы. Обновить? (Приложение ЗАКРОЕТСЯ для обновления)\n\n Описание обновления:\n" + updateResult.ReleaseDiscription, "Обновление найдено", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes;
+						if (result) 
+							labelTask = Task.Run(() => ProgressForm.ToLabel("Скачивание и распаковка обновления")).ConfigureAwait(false);
 						
 
-					return result;
-				},
-					true, new Regex("^Update"), true, true, KillRelatedProcesses:true)).ConfigureAwait(false);
+						return result;
+					})).ConfigureAwait(false);
 			}
 			catch (Exception e)
 			{
@@ -150,12 +150,24 @@ namespace xml_js_Parser.Classes
 							errorList.Add(new Exception($"Can't kill {x.ProcessName}"));
 						}
 
-
-						//! Перемещение скачанного обновления (и замена файлов)
-					IO.MoveAllTo("Temp", "", true, false, new List<Regex>(new []{new Regex(@".*\\Updater\..*")}));
+					//! Перемещение скачанного обновления (и замена файлов)
+					IO.MoveAllTo("Temp", "", true, false, IgnoreList.Concat(RenameList).ToList());
 
 					foreach (var x in pathList) //: Воскрешение убитых процессов
 						try { Process.Start(x); } catch (Exception){errorList.Add(new Exception($"Can't start {x}"));}
+
+					try
+					{
+						foreach (var file in Directory.GetFiles("Temp")) //! Переименование файлов, которые не могут быть заменены
+						{
+							if(!RenameList.IsMatchAny(file)) continue;
+							IO.RenameAll("Temp", x => x.Insert(x.LastIndexOf("."), ".new"));
+						}
+					}
+					catch (Exception e)
+					{
+						e.ShowMessageBox("Ошибка обновления обновлятеля на этапе перемещения скачанных файлов");
+					}
 
 				}
 				catch (Exception e)
