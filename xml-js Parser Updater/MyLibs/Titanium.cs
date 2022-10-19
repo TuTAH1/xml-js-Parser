@@ -248,13 +248,14 @@ namespace Titanium {
 
 				}
 
-				public static string ToStringT<T>(this T[] Array, string Separator = "") //:21.04.2022 Added separator parametr, replaced [foreach] by [for]
+				public static string ToStringT<T>(this IEnumerable<T> Array, string Separator = "") //:21.04.2022 Added separator parametr, replaced [foreach] by [for]
 				{
 					string s = "";
-					for (int i = 0; i < Array.Length; i++)
+					var Count = Array.Count();
+					for (int i = 0; i < Count; i++)
 					{
-						s += Array[i];
-						if (i != Array.Length - 1) s += Separator;
+						s += Array.ElementAt(i);
+						if (i != Count - 1) s += Separator;
 					}
 
 					return s;
@@ -578,6 +579,9 @@ namespace Titanium {
 
 			#region String
 
+			public static bool ContainsAny(this string s, IEnumerable<string> sequence) => sequence.Any(s.Contains);
+			public static bool ContainsAll(this string s, IEnumerable<string> sequence) => sequence.All(s.Contains);
+
 			public static int SymbolsCount(this string s)
 			{
 				int i = s.Length;
@@ -722,18 +726,19 @@ namespace Titanium {
 			public enum Positon: byte { left,center,right}
 
 			// /// <summary>
-			// /// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>. Same as c# 8's s[start..end] 
+			// /// Slices the string form <paramref name="Start"/> to <paramref name="End"/> <para></para>
+			// /// Supported types: <typeparamref name="int"></typeparamref>, <typeparamref name="string"></typeparamref>, <typeparamref name="Regex"></typeparamref>, <typeparamref name="Func&lt;char,bool&gt;"></typeparamref>;
 			// /// </summary>
-			// /// <typeparam name="Ts"></typeparam>
-			// /// <typeparam name="Te"></typeparam>
+			// /// <typeparam name="Ts">Type of the <paramref name="Start"/></typeparam>
+			// /// <typeparam name="Te">Type of the <paramref name="End"/></typeparam>
 			// /// <param name="s"></param>
-			// /// <param name="Start"></param>
-			// /// <param name="End"></param>
-			// /// <param name="AlwaysReturnString"></param>
+			// /// <param name="Start">Start of the result string</param>
+			// /// <param name="End">End of the result string</param>
+			// /// <param name="AlwaysReturnString">return <paramref name="s"/> if <paramref name="Start"/> or <paramref name="End"/> not found (may be half-cutted)</param>
 			// /// <param name="LastStart"></param>
 			// /// <param name="LastEnd"></param>
-			// /// <param name="IncludeStart"></param>
-			// /// <param name="IncludeEnd"></param>
+			// /// <param name="IncludeStart">Include <paramref name="Start"/> symbols (doesn't do anything if <typeparamref name="Ts"/> is <typeparamref name="int"/></param>
+			// /// <param name="IncludeEnd">Include <paramref name="End"/> symbols (doesn't do anything if <typeparamref name="Te"/> is <typeparamref name="int"/></param>
 			// /// <returns></returns>
 			// /// <exception cref=""></exception>
 			// public static string Slice<Ts, Te>(this string s, Ts? Start = default, Te? End = default, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false)
@@ -778,8 +783,8 @@ namespace Titanium {
 			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
 			/// <param name="EndsWith">Строка, до которой будет происходить срезание</param>
 			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
-			/// <param name="LastStart">Начинать поиск Start с конца</param>
-			/// <param name="LastEnd">Начинать поиск Start с конца</param>
+			/// <param name="LastStart">Начинать поиск <paramref name="StartsWith"/> с конца</param>
+			/// <param name="LastEnd">Начинать поиск <paramref name="EndsWith"/> с конца</param>
 			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
 			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
 			/// <returns></returns>
@@ -794,7 +799,7 @@ namespace Titanium {
 				if (end < 0) return  AlwaysReturnString? s : null;
 
 
-				return IncludeStart? StartsWith : "" + s.Slice(start) + (IncludeEnd? EndsWith : "");
+				return (IncludeStart? StartsWith : "") + s.Slice(0,end) + (IncludeEnd? EndsWith : "");
 			}
 
 			/// <summary>
@@ -1248,87 +1253,99 @@ namespace Titanium {
 
 			#region Enumerable
 
-			
-							/// <summary>
-							/// Случайным образом перемешивает массив
-							/// </summary>
-							public static List<T> RandomShuffle<T>(this IEnumerable<T> list)
-							{
-								Random random = new Random();
-								var shuffle = new List<T>(list);
-								for (var i = shuffle.Count() - 1; i >= 1; i--)
-								{
-									int j = random.Next(i + 1);
+			public static bool Empty<T>(this IEnumerable<T> s) => !s.Any(); 
+			public static Tgt[] ToArray<Tgt, Src>(this IEnumerable<Src> source, Func<Src, Tgt> Convert)
+			{
+				Tgt[] result = new Tgt[source.Count()];
+				int i = 0;
+				foreach (var s in source)
+				{
+					result[i++] = Convert(s);
+				}
 
-									var tmp = shuffle[j];
-									shuffle[j] = shuffle[i];
-									shuffle[i] = tmp;
-								}
-								return shuffle;
-							}
+				return result;
+			}
 
-							public static List<T> RandomShuffle<T>(this IEnumerable<T> list, Random random)
-							{
-								var shuffle = new List<T>(list);
-								for (var i = shuffle.Count() - 1; i >= 1; i--)
-								{
-									int j = random.Next(i + 1);
+			/// <summary>
+			/// Случайным образом перемешивает массив
+			/// </summary>
+			public static List<T> RandomShuffle<T>(this IEnumerable<T> list)
+			{
+				Random random = new Random();
+				var shuffle = new List<T>(list);
+				for (var i = shuffle.Count() - 1; i >= 1; i--)
+				{
+					int j = random.Next(i + 1);
 
-									var tmp = shuffle[j];
-									shuffle[j] = shuffle[i];
-									shuffle[i] = tmp;
-								}
-								return shuffle;
-							}
+					var tmp = shuffle[j];
+					shuffle[j] = shuffle[i];
+					shuffle[i] = tmp;
+				}
+				return shuffle;
+			}
 
-							public static List<int> RandomList(int start, int count)
-							{
-								List<int> List = new List<int>(count);
-								List<bool> Empty = new List<bool>();
-								for (int i = 0; i < count; i++)
-								{
-									List.Add(0);
-									Empty.Add(true);
-								}
-								Random Random = new Random();
+			public static List<T> RandomShuffle<T>(this IEnumerable<T> list, Random random)
+			{
+				var shuffle = new List<T>(list);
+				for (var i = shuffle.Count() - 1; i >= 1; i--)
+				{
+					int j = random.Next(i + 1);
 
-								int End = start + count;
-								for (int i = start; i < End;)
-								{
-									int Index = Random.Next(0, count); //C#-повский рандом гавно. Надо заменить чем-то
+					var tmp = shuffle[j];
+					shuffle[j] = shuffle[i];
+					shuffle[i] = tmp;
+				}
+				return shuffle;
+			}
 
-									if (Empty[Index])
-									{
-										List[Index] = i;
-										Empty[Index] = false;
-										i++;
+			public static List<int> RandomList(int start, int count)
+			{
+				List<int> List = new List<int>(count);
+				List<bool> Empty = new List<bool>();
+				for (int i = 0; i < count; i++)
+				{
+					List.Add(0);
+					Empty.Add(true);
+				}
+				Random Random = new Random();
 
-									}
-								}
+				int End = start + count;
+				for (int i = start; i < End;)
+				{
+					int Index = Random.Next(0, count); //C#-повский рандом гавно. Надо заменить чем-то
 
-								return List;
-							}
+					if (Empty[Index])
+					{
+						List[Index] = i;
+						Empty[Index] = false;
+						i++;
 
-							public static T Pop<T>(this List<T> list)
-							{
-								T r = list[^1];
-								list.RemoveAt(list.Count-1);
-								return r;
-							}
+					}
+				}
+
+				return List;
+			}
+
+			public static T Pop<T>(this List<T> list)
+			{
+				T r = list[^1];
+				list.RemoveAt(list.Count-1);
+				return r;
+			}
 		
-							public static void Swap<T>(this List<T> list, int aIndex, int bIndex)
-							{
-								T value = list[aIndex];
-								list[aIndex] = list[bIndex];
-								list[bIndex] = value;
-							}
+			public static void Swap<T>(this List<T> list, int aIndex, int bIndex)
+			{
+				T value = list[aIndex];
+				list[aIndex] = list[bIndex];
+				list[bIndex] = value;
+			}
 
-							public static void Swap<T>(this T[] list, int aIndex, int bIndex)
-							{
-								T value = list[aIndex];
-								list[aIndex] = list[bIndex];
-								list[bIndex] = value;
-							}
+			public static void Swap<T>(this T[] list, int aIndex, int bIndex)
+			{
+				T value = list[aIndex];
+				list[aIndex] = list[bIndex];
+				list[bIndex] = value;
+			}
 			public static int IndexOf<T>(this T[] array, T value) => Array.IndexOf(array, value);
 
 			public static T[][] Split<T>(this T[] array, int arraysCount)
@@ -1595,6 +1612,20 @@ namespace Titanium {
 				}
 
 				return r;
+			}
+
+			/// <summary>
+			/// Swaps "equal" mode to "contains" mode (Добавляет $/^ в начало/конец, если их нет; Убирает их, если они есть)
+			/// </summary>
+			/// <param name="S"></param>
+			/// <returns></returns>
+			internal static Regex InvertRegex(string S)
+			{
+				bool anyStart = S.StartsWith("^");
+				bool anyEnd = S.EndsWith("$");
+				S = anyStart ? S[1..] : $"^{S}";
+				S = anyEnd ? S[..^1] : $"{S}$";
+				return new Regex(S);
 			}
 
 			#endregion

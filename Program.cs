@@ -48,7 +48,10 @@ namespace Application
 			{
 				try
 				{
-					Parsing();
+					ReWrite("Выберите тип парсинга: \n");
+					Parsing((ParsingType)Menu( ((ParsingType[])Enum.GetValues(typeof(ParsingType))).ToArray(
+								Type => new Option(GetTypeName(Type), Type.ToString())
+								)));
 					WaitKey("выбрать другой файл");
 				}
 				catch (Exception e)
@@ -56,49 +59,88 @@ namespace Application
 					e.Write("перезапустить приложение");
 				}
 			}
-
-			
 		}
 
-		private static void Parsing()
+		enum ParsingType
 		{
-			string xmlObject = Name("object"); //:<object> node name
+			docx,
+			xsl,
+			xml
+		}
 
+		private static string GetTypeName(ParsingType type) => type switch
+		{
+			ParsingType.docx => "ТЗ (.docx)",
+			ParsingType.xsl => ".xsl",
+			ParsingType.xml => ".xml (не рекомендуется)",
+			_ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+		};
+
+		private static void Parsing(ParsingType parsingType)
+		{
+			
 			ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
-			Table Dictionary = GetDictionary(DictionaryPath); //: Чтение словаря
+			Table.Block Dictionary = GetDictionary(DictionaryPath); //: Чтение словаря
 
 			if (Dictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
 			else ReWrite($"Словарь с {Dictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
 
-			var xmlFile = XmlFile.Get(); //: Чтение xml файла
-			var xml = xmlFile.Doc;
-			var docxFilePath = xmlFile.Info.FullName.Slice(0, ".", true, true) + ".docx";
-			if (!File.Exists(docxFilePath))
-				docxFilePath = GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
-
-			Table = Dictionary + new Table(GetFileDocx(docxFilePath)); //: Чтение таблицы из .txt файла и добавление её к словарю
-
 			//TableMode = quSwitch(true, c.cyan, c.yellow, c.silver, "Таблица", "Словарь");
+			TreeNode<Data> tree = null;
+			string filePath = null;
 
-			ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
-			var rootNode = xml.Root.Elements(xmlObject).FirstOrDefault();
-			var tree = new TreeNode<Data>(new Data(rootNode));
-			if (rootNode == null) throw new ArgumentNullException(nameof(rootNode), "Корневой object не найден");
-			var objBranches = tree
-				.CreateChilds(new[]
+			switch (parsingType)
+			{
+				case ParsingType.xml:
 				{
-					new XMLData("object", "code"), //:Steps
-					new XMLData("object", "code", "name", askIfNotFound: true), //:Groups
-					new XMLData("object", "code", "value", true), //:Objects
-					//new TypesData("attrs"),
-					//new TypesData("entry", "key", "value")
-				}); //: Чтение всего xml и добавление из него элементов в дерево
-			Table = null;
+					var xmlFile = XmlFile.Get(); //: Чтение xml файла
+					filePath = xmlFile.Info.FullName.Slice(0,".");
+					var xml = xmlFile.Doc;
+					var docxFilePath = xmlFile.Info.FullName.Slice(0, ".", true, true) + ".docx";
+					if (!File.Exists(docxFilePath))
+						docxFilePath = GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
 
-			if (tree.Empty) throw new ArgumentException("дерево пусто");
-			else ReWrite("\nДерево успешно прочитано", c.green, ClearLine: true);
+					Table.Block DocxTable = new(GetFileDocx(docxFilePath), "docx"); 
+					Table.Blocks.AddRange(new []{DocxTable}); //: добавление таблицы из .docx к словарю
 
-			tree.DeleteGroups(); //: удаление безымянных груп (типа Gp1, APG1 и тд)
+					string xmlObject = Name("object"); //:<object> node name
+					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
+					var rootNode = xml.Root.Elements(xmlObject).FirstOrDefault();
+					tree = new TreeNode<Data>(new Data(rootNode));
+					if (rootNode == null) throw new ArgumentNullException(nameof(rootNode), "Корневой object не найден");
+					var objBranches = tree
+						.CreateChilds(new[]
+						{
+							new XMLData("object", "code"), //:Steps
+							new XMLData("object", "code", "name", askIfNotFound: true), //:Groups
+							new XMLData("object", "code", "value", true), //:Objects
+							//new TypesData("attrs"),
+							//new TypesData("entry", "key", "value")
+						}); //: Чтение всего xml и добавление из него элементов в дерево
+					Table = null;
+
+					if (tree.Empty) throw new ArgumentException("дерево пусто");
+					else ReWrite("\nДерево успешно прочитано", c.green, ClearLine: true);
+
+					tree.DeleteGroups(); //: удаление безымянных груп (типа Gp1, APG1 и тд)
+				} break;
+
+				case ParsingType.docx:
+				{
+					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
+
+					var docxFilePath = GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
+
+					var DocxTable = new Table(GetFileDocx(docxFilePath)); 
+
+				} break;
+				case ParsingType.xsl:
+				{} break;
+				default:
+					throw new ArgumentOutOfRangeException(nameof(parsingType), parsingType, null);
+			}
+
+			
 
 			var js = GenerateJsCode(tree);
 			saveFile(js);
@@ -106,10 +148,10 @@ namespace Application
 
 			void saveFile(string Text)
 			{
-				var fileName = xmlFile.Info.Name.Slice(0, ".", LastEnd: true) + ".js";
+				var fileName = filePath.Slice(0, ".", LastEnd: true) + ".js";
 				ReWrite("\nВведите название файла: ");
 				fileName = ReadT(InputString: fileName).String();
-				var filePath = xmlFile.Info.DirectoryName.Add("\\") + fileName;
+				filePath = filePath.Slice(0,"\\",false,true,true) + fileName;
 
 				if (File.Exists(filePath))
 				{

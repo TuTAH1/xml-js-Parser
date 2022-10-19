@@ -248,13 +248,14 @@ namespace Titanium {
 
 				}
 
-				public static string ToStringT<T>(this T[] Array, string Separator = "") //:21.04.2022 Added separator parametr, replaced [foreach] by [for]
+				public static string ToStringT<T>(this IEnumerable<T> Array, string Separator = "") //:21.04.2022 Added separator parametr, replaced [foreach] by [for]
 				{
 					string s = "";
-					for (int i = 0; i < Array.Length; i++)
+					var Count = Array.Count();
+					for (int i = 0; i < Count; i++)
 					{
-						s += Array[i];
-						if (i != Array.Length - 1) s += Separator;
+						s += Array.ElementAt(i);
+						if (i != Count - 1) s += Separator;
 					}
 
 					return s;
@@ -541,92 +542,7 @@ namespace Titanium {
 
 			#endregion
 
-			#region List
-
-							/// <summary>
-							/// Случайным образом перемешивает массив
-							/// </summary>
-							public static List<T> RandomShuffle<T>(this IEnumerable<T> list)
-							{
-								Random random = new Random();
-								var shuffle = new List<T>(list);
-								for (var i = shuffle.Count() - 1; i >= 1; i--)
-								{
-									int j = random.Next(i + 1);
-
-									var tmp = shuffle[j];
-									shuffle[j] = shuffle[i];
-									shuffle[i] = tmp;
-								}
-								return shuffle;
-							}
-
-							public static List<T> RandomShuffle<T>(this IEnumerable<T> list, Random random)
-							{
-								var shuffle = new List<T>(list);
-								for (var i = shuffle.Count() - 1; i >= 1; i--)
-								{
-									int j = random.Next(i + 1);
-
-									var tmp = shuffle[j];
-									shuffle[j] = shuffle[i];
-									shuffle[i] = tmp;
-								}
-								return shuffle;
-							}
-
-							public static List<int> RandomList(int start, int count)
-							{
-								List<int> List = new List<int>(count);
-								List<bool> Empty = new List<bool>();
-								for (int i = 0; i < count; i++)
-								{
-									List.Add(0);
-									Empty.Add(true);
-								}
-								Random Random = new Random();
-
-								int End = start + count;
-								for (int i = start; i < End;)
-								{
-									int Index = Random.Next(0, count); //C#-повский рандом гавно. Надо заменить чем-то
-
-									if (Empty[Index])
-									{
-										List[Index] = i;
-										Empty[Index] = false;
-										i++;
-
-									}
-								}
-
-								return List;
-							}
-
-							public static T Pop<T>(this List<T> list)
-							{
-								T r = list[^1];
-								list.RemoveAt(list.Count-1);
-								return r;
-							}
-		
-							public static void Swap<T>(this List<T> list, int aIndex, int bIndex)
-							{
-								T value = list[aIndex];
-								list[aIndex] = list[bIndex];
-								list[bIndex] = value;
-							}
-
-							public static void Swap<T>(this T[] list, int aIndex, int bIndex)
-							{
-								T value = list[aIndex];
-								list[aIndex] = list[bIndex];
-								list[bIndex] = value;
-							}
-
-							#endregion
-
-		#endregion
+			#endregion
 
 
 		#region OtherTypeFuncs
@@ -662,6 +578,9 @@ namespace Titanium {
 			#endregion
 
 			#region String
+
+			public static bool ContainsAny(this string s, IEnumerable<string> sequence) => sequence.Any(s.Contains);
+			public static bool ContainsAll(this string s, IEnumerable<string> sequence) => sequence.All(s.Contains);
 
 			public static int SymbolsCount(this string s)
 			{
@@ -730,61 +649,118 @@ namespace Titanium {
 			/// <param name="Offset">Positive is right, negative is left. Will be sliced if out of range</param>
 			/// <returns></returns>
 			public static string FormatString(this string s, int FixedLength, Positon Align, char Filter = ' ', int Offset = 0)
+			{
+				if (s.Length<FixedLength)
+				{
+					int NumberOfFillerSymbols = FixedLength - s.Length;
+					switch (Align)
 					{
-						if (s.Length<FixedLength)
+						case Positon.left:
 						{
-							int NumberOfFillerSymbols = FixedLength - s.Length;
-							switch (Align)
-							{
-								case Positon.left:
-								{
-									Offset = Offset.FitPositive(NumberOfFillerSymbols);
-									NumberOfFillerSymbols -= Offset;
-									s = Filter.Multiply(Offset) + s + Filter.Multiply(NumberOfFillerSymbols);
-								}
-									break;
-								case Positon.center:
-								{
-									int firstHalf = NumberOfFillerSymbols.IsEven()? NumberOfFillerSymbols/2 : Offset>0? NumberOfFillerSymbols/2 : NumberOfFillerSymbols/2 +1,
-										secondHalf = NumberOfFillerSymbols-firstHalf;
-									if (NumberOfFillerSymbols.IsOdd()) Offset += (Offset > 0) ? -1 : 1;
+							Offset = Offset.FitPositive(NumberOfFillerSymbols);
+							NumberOfFillerSymbols -= Offset;
+							s = Filter.Multiply(Offset) + s + Filter.Multiply(NumberOfFillerSymbols);
+						}
+							break;
+						case Positon.center:
+						{
+							int firstHalf = NumberOfFillerSymbols.IsEven()? NumberOfFillerSymbols/2 : Offset>0? NumberOfFillerSymbols/2 : NumberOfFillerSymbols/2 +1,
+								secondHalf = NumberOfFillerSymbols-firstHalf;
+							if (NumberOfFillerSymbols.IsOdd()) Offset += (Offset > 0) ? -1 : 1;
 									
-									firstHalf += Offset;
-									secondHalf -= Offset;
-									s = Filter.Multiply(firstHalf) + s + Filter.Multiply(secondHalf);
-								}
-									break;
-								case Positon.right:
-								{
-									Offset.FitNegative(NumberOfFillerSymbols);
-									NumberOfFillerSymbols += Offset;
-									s = Filter.Multiply(NumberOfFillerSymbols) + s + Filter.Multiply(Offset);
-								}
-									break;
-							}
+							firstHalf += Offset;
+							secondHalf -= Offset;
+							s = Filter.Multiply(firstHalf) + s + Filter.Multiply(secondHalf);
 						}
-						else if (s.Length>FixedLength)
+							break;
+						case Positon.right:
 						{
-							int Eindex = s.LastIndexOf('E');
-
-							if (Eindex>0)
-							{ //если в строке есть Е+хх
-								string E = s.TrimStart('E');
-								s=s.Substring(0, FixedLength-E.Length);
-								s+=E;
-							}
-							else
-							{
-								s=s.Substring(0, FixedLength);
-							}
+							Offset.FitNegative(NumberOfFillerSymbols);
+							NumberOfFillerSymbols += Offset;
+							s = Filter.Multiply(NumberOfFillerSymbols) + s + Filter.Multiply(Offset);
 						}
-						return s;
+							break;
 					}
+				}
+				else if (s.Length>FixedLength)
+				{
+					int Eindex = s.LastIndexOf('E');
+
+					if (Eindex>0)
+					{ //если в строке есть Е+хх
+						string E = s.TrimStart('E');
+						s=s.Substring(0, FixedLength-E.Length);
+						s+=E;
+					}
+					else
+					{
+						s=s.Substring(0, FixedLength);
+					}
+				}
+				return s;
+			}
+
+			/// <summary>
+			/// Inserts <paramref name="Value"/> between <paramref name="Start"> and <paramref name="end"/>
+			/// </summary>
+			/// <param name="s"></param>
+			/// <param name="Value"></param>
+			/// <param name="Start"></param>
+			/// <param name="end"></param>
+			/// <returns></returns>
+			/// <exception cref="ArgumentException"></exception>
+			public static string Insert(this string s, string Value, int Start, int? End = null)
+			{
+				int end=  End?? Start;
+				if (s.IsNullOrEmpty()) return Value;
+				if (Start < 0) Start = s.Length - Start;
+				if (end < 0) end = s.Length - Start;
+				if (Start > end) Swap(ref Start, ref end);
+
+				if (Start < 0 || Start > s.Length) throw new ArgumentException("Incorrect start " + Start, nameof(Start));
+				if (end < 0 || end > s.Length) throw new ArgumentException("Incorrect end " +end, nameof(end));
+
+				return s.Slice(0,Start) + Value + s.Slice(Start);
+			}
 
 			public enum Positon: byte { left,center,right}
 
+			// /// <summary>
+			// /// Slices the string form <paramref name="Start"/> to <paramref name="End"/> <para></para>
+			// /// Supported types: <typeparamref name="int"></typeparamref>, <typeparamref name="string"></typeparamref>, <typeparamref name="Regex"></typeparamref>, <typeparamref name="Func&lt;char,bool&gt;"></typeparamref>;
+			// /// </summary>
+			// /// <typeparam name="Ts">Type of the <paramref name="Start"/></typeparam>
+			// /// <typeparam name="Te">Type of the <paramref name="End"/></typeparam>
+			// /// <param name="s"></param>
+			// /// <param name="Start">Start of the result string</param>
+			// /// <param name="End">End of the result string</param>
+			// /// <param name="AlwaysReturnString">return <paramref name="s"/> if <paramref name="Start"/> or <paramref name="End"/> not found (may be half-cutted)</param>
+			// /// <param name="LastStart"></param>
+			// /// <param name="LastEnd"></param>
+			// /// <param name="IncludeStart">Include <paramref name="Start"/> symbols (doesn't do anything if <typeparamref name="Ts"/> is <typeparamref name="int"/></param>
+			// /// <param name="IncludeEnd">Include <paramref name="End"/> symbols (doesn't do anything if <typeparamref name="Te"/> is <typeparamref name="int"/></param>
+			// /// <returns></returns>
+			// /// <exception cref=""></exception>
+			// public static string Slice<Ts, Te>(this string s, Ts? Start = default, Te? End = default, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false)
+			// {
+			// 	int start = 0;
+			// 	switch (Start)
+			// 	{
+			// 		case int res:
+			// 			start = res;
+			// 			break;
+			// 		case string res:
+			// 			start = Start == null ? 0 : LastStart ? s.LastIndexOfEnd(res) : s.IndexOfEnd(res); //!TODO: РЕАЛИЗОВАТЬ ОСТАЛЬНЫЕ ТИПЫ
+			// 			break;
+			// 		default:
+			// 			throw new TypeInitializationException(typeof(Ts).FullName, new ArgumentException($"Type of {nameof(Start)} is not supported"));
+			//
+			// 	}
+			// 	if (start < 0) return  AlwaysReturnString? s : null;
+			// }
+
 			/// <summary>
-			/// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>
+			/// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>. Same as c# 8's s[start..end]
 			/// </summary>
 			/// <param name="s"></param>
 			/// <param name="Start">if negative, counts from end</param>
@@ -796,8 +772,8 @@ namespace Titanium {
 				if (Start < 0) Start = s.Length + Start;
 				//if (Start < 0) throw new ArgumentOutOfRangeException(nameof(Start),Start,null);
 				if (Start > End) throw new ArgumentOutOfRangeException(nameof(Start),Start,$"start ({Start}) is be bigger than end ({End})");
-				if (End > s.Length) End = s.Length-1;
-				return s.Substring(Start, (End - Start)+1);
+				if (End > s.Length) End = s.Length;
+				return s.Substring(Start, (End - Start));
 			}
 
 			/// <summary>
@@ -807,8 +783,8 @@ namespace Titanium {
 			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
 			/// <param name="EndsWith">Строка, до которой будет происходить срезание</param>
 			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
-			/// <param name="LastStart">Начинать поиск Start с конца</param>
-			/// <param name="LastEnd">Начинать поиск Start с конца</param>
+			/// <param name="LastStart">Начинать поиск <paramref name="StartsWith"/> с конца</param>
+			/// <param name="LastEnd">Начинать поиск <paramref name="EndsWith"/> с конца</param>
 			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
 			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
 			/// <returns></returns>
@@ -823,7 +799,7 @@ namespace Titanium {
 				if (end < 0) return  AlwaysReturnString? s : null;
 
 
-				return IncludeStart? StartsWith : "" + s.Slice(start) + (IncludeEnd? EndsWith : "");
+				return (IncludeStart? StartsWith : "") + s.Slice(0,end) + (IncludeEnd? EndsWith : "");
 			}
 
 			/// <summary>
@@ -1277,6 +1253,99 @@ namespace Titanium {
 
 			#region Enumerable
 
+			public static bool Empty<T>(this IEnumerable<T> s) => !s.Any(); 
+			public static Tgt[] ToArray<Tgt, Src>(this IEnumerable<Src> source, Func<Src, Tgt> Convert)
+			{
+				Tgt[] result = new Tgt[source.Count()];
+				int i = 0;
+				foreach (var s in source)
+				{
+					result[i++] = Convert(s);
+				}
+
+				return result;
+			}
+
+			/// <summary>
+			/// Случайным образом перемешивает массив
+			/// </summary>
+			public static List<T> RandomShuffle<T>(this IEnumerable<T> list)
+			{
+				Random random = new Random();
+				var shuffle = new List<T>(list);
+				for (var i = shuffle.Count() - 1; i >= 1; i--)
+				{
+					int j = random.Next(i + 1);
+
+					var tmp = shuffle[j];
+					shuffle[j] = shuffle[i];
+					shuffle[i] = tmp;
+				}
+				return shuffle;
+			}
+
+			public static List<T> RandomShuffle<T>(this IEnumerable<T> list, Random random)
+			{
+				var shuffle = new List<T>(list);
+				for (var i = shuffle.Count() - 1; i >= 1; i--)
+				{
+					int j = random.Next(i + 1);
+
+					var tmp = shuffle[j];
+					shuffle[j] = shuffle[i];
+					shuffle[i] = tmp;
+				}
+				return shuffle;
+			}
+
+			public static List<int> RandomList(int start, int count)
+			{
+				List<int> List = new List<int>(count);
+				List<bool> Empty = new List<bool>();
+				for (int i = 0; i < count; i++)
+				{
+					List.Add(0);
+					Empty.Add(true);
+				}
+				Random Random = new Random();
+
+				int End = start + count;
+				for (int i = start; i < End;)
+				{
+					int Index = Random.Next(0, count); //C#-повский рандом гавно. Надо заменить чем-то
+
+					if (Empty[Index])
+					{
+						List[Index] = i;
+						Empty[Index] = false;
+						i++;
+
+					}
+				}
+
+				return List;
+			}
+
+			public static T Pop<T>(this List<T> list)
+			{
+				T r = list[^1];
+				list.RemoveAt(list.Count-1);
+				return r;
+			}
+		
+			public static void Swap<T>(this List<T> list, int aIndex, int bIndex)
+			{
+				T value = list[aIndex];
+				list[aIndex] = list[bIndex];
+				list[bIndex] = value;
+			}
+
+			public static void Swap<T>(this T[] list, int aIndex, int bIndex)
+			{
+				T value = list[aIndex];
+				list[aIndex] = list[bIndex];
+				list[bIndex] = value;
+			}
 			public static int IndexOf<T>(this T[] array, T value) => Array.IndexOf(array, value);
 
 			public static T[][] Split<T>(this T[] array, int arraysCount)
@@ -1529,6 +1598,35 @@ namespace Titanium {
 			public static bool IsMatchT(this Regex r, string s, int start = 0) => s != null && r.IsMatch(s, start);
 			public static bool IsMatchAny(this IEnumerable<Regex> r, string s, int start = 0) => s != null && r.Any(x => x.IsMatch(s));
 			public static bool IsMatchAll(this IEnumerable<Regex> r, string s, int start = 0) => s != null && r.All(x => x.IsMatch(s));
+			public static Regex Reverse(this Regex r)
+			{
+				var regStr = r.ToString();
+				return regStr.StartsWith(@"^((?!") && regStr.EndsWith(@").)*")? new Regex(regStr[5..^4]) : new Regex(@"^((?!" + r + @").)*");
+			}
+
+			public static List<Regex> ReverseRegexes(this List<Regex> r)
+			{
+				for (int i = 0; i < r.Count; i++)
+				{
+					r[i] = Reverse(r[i]);
+				}
+
+				return r;
+			}
+
+			/// <summary>
+			/// Swaps "equal" mode to "contains" mode (Добавляет $/^ в начало/конец, если их нет; Убирает их, если они есть)
+			/// </summary>
+			/// <param name="S"></param>
+			/// <returns></returns>
+			internal static Regex InvertRegex(string S)
+			{
+				bool anyStart = S.StartsWith("^");
+				bool anyEnd = S.EndsWith("$");
+				S = anyStart ? S[1..] : $"^{S}";
+				S = anyEnd ? S[..^1] : $"{S}$";
+				return new Regex(S);
+			}
 
 			#endregion
 
@@ -1624,6 +1722,7 @@ namespace Titanium {
 		public static void CopyAll(string SourcePath, string TargetPath, bool KillRelatedProcesses = false, List<Regex> ExceptList = null, bool DisableSyntaxCheck = false)
 		{
 			ExceptList ??= new List<Regex>();
+			var ErrorList = new List<Exception>();
 			if (!DisableSyntaxCheck)
 			{
 				SourcePath = SourcePath.Replace("/", "\\").Add("\\");
@@ -1633,17 +1732,56 @@ namespace Titanium {
 			//Now Create all of the directories
 			foreach (string dirPath in Directory.GetDirectories(SourcePath, "*", SearchOption.AllDirectories))
 			{
-				if (ExceptList.Any(x => x.Match(dirPath).Success))
-				Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
+				if (ExceptList.IsMatchAny(dirPath)) continue;
+				try
+				{
+					Directory.CreateDirectory(dirPath.Replace(SourcePath, TargetPath));
+				}
+				catch (Exception e)
+				{
+					ErrorList.Add(e);
+				}
+				
 			}
 
 			//Copy all the files & Replaces any files with the same name
 			foreach (string newPath in Directory.GetFiles(SourcePath, "*.*", SearchOption.AllDirectories))
 			{
-				var destination = newPath.Replace(SourcePath, TargetPath);
-				if (KillRelatedProcesses && destination.EndsWith(".exe"))
-					TypesFuncs.KillProcesses(Path: destination);
-				File.Copy(newPath, destination , true);
+				if (ExceptList.IsMatchAny(newPath)) continue;
+				try
+				{
+					var destination = newPath.Replace(SourcePath, TargetPath);
+					if (KillRelatedProcesses && destination.EndsWith(".exe"))
+						TypesFuncs.KillProcesses(Path: destination);
+					File.Copy(newPath, destination , true);
+				}
+				catch (Exception e)
+				{
+					ErrorList.Add(e);
+				}
+				
+			}
+
+			if (ErrorList.Count > 0) throw new AggregateException("Unable to copy files" ,ErrorList);
+		}
+
+		/// <summary>
+		///  Renames all files in the Directory (not recursive)
+		/// </summary>
+		/// <param name="FolderPath"></param>
+		/// <param name="Rename"> Function where input is file's name (not path) and the output is new file's name</param>
+		/// <param name="ExceptList">Regular expression of filePATHs that won't be renamed</param>
+		public static void RenameAll(string FolderPath, Func<string, string> Rename, List<Regex>? ExceptList = null)
+		{
+			ExceptList ??= new List<Regex>();
+			foreach (var file in Directory.GetFiles(FolderPath))
+			{
+				if(ExceptList.IsMatchAny(file)) continue;
+
+				var fileInfo = new FileInfo(file);
+				var path = fileInfo.Directory.FullName;
+				var fileName = fileInfo.Name;
+				File.Move(file,Path.Combine(path, Rename(fileName)));	
 			}
 		}
 
@@ -1663,6 +1801,7 @@ namespace Titanium {
 			{
 				foreach (var dir in di.GetDirectories())
 				{
+					if (ExceptList.IsMatchAny(dir.FullName))
 					dir.Delete(true);
 				}
 			}
