@@ -90,6 +90,26 @@ namespace xml_js_Parser.Classes
 				}
 			
 			}
+
+			public static XmlFile Get(string filepath)
+			{
+				var cursorPosition = GetCurPos();
+				try //:										Парсинг
+				{
+					ReWrite("\nИдёт парсинг xml... ", c.purple);
+					XDocument xml = XDocument.Load(filepath);
+					ReWrite("\nПарсинг успешно завершён", c.green);
+					return new XmlFile(xml, new FileInfo(filepath));
+				}
+				catch (Exception e)
+				{
+					ReWrite($"\nОшибка: {e.Message}", c.red, ClearLine: true);
+					ReWrite(" (повторите попытку)", c.Default);
+					SetCurPos(cursorPosition);
+					return null;
+				}
+			
+			}
 		}
 
 		public class Data //TODO: придумать нормальное имя
@@ -119,29 +139,12 @@ namespace xml_js_Parser.Classes
 		/// <param name="filepath"></param>
 		/// <returns></returns>
 		/// <exception cref="ArgumentException"></exception>
-		public static List<string[]> GetFileDocx(string filepath)
+		public static List<string[]> GetListFromDocx(string filepath)
 		{
-			ReWrite("\nИдёт чтение .doc файла... ", c.purple);
 			List<string[]> Data = new();
-			using WordprocessingDocument doc =
-				WordprocessingDocument.Open(filepath, false);
-			var tables = doc.MainDocumentPart.Document.Body.Elements<DocTable>();
-			ReWrite("Файл открыт", c.green); ReWrite("\nИдёт поиск нужной таблицы... ",c.purple);
-			DocTable specTable = null;
-			int[] Ns = null;
-			int NsMax = 0;
-			foreach (DocTable table in tables)
-			{
-				var Header = table.Elements<TableRow>().ElementAt(0);
-				Ns = Header.GetMainColumnsIndexes();
-				if (Ns == null) continue;
-				specTable = table;
-				break;
-			}
-			if(specTable==null) throw new ArgumentException("Подходящей таблицы не найдено в .docx файле");
-			ReWrite("Нужная таблица найдена",c.green);
-
-			NsMax = Ns.Max();
+			DocTable specTable = GetDocxTable(filepath, out int[] Ns);
+			
+			var NsMax = Ns.Max();
 
 			foreach (var row in specTable.Elements<TableRow>().ToArray()[1..])
 			{
@@ -151,6 +154,31 @@ namespace xml_js_Parser.Classes
 			}
 
 			return Data;
+		}
+
+		public static DocTable GetDocxTable(string filepath) => GetDocxTable(filepath, out _);
+
+		public static DocTable GetDocxTable(string filepath, out int[] MainColumnNumbers)
+		{
+			ReWrite("\nИдёт чтение .docx файла... ", c.purple);
+			using WordprocessingDocument doc =
+				WordprocessingDocument.Open(filepath, false);
+			var tables = doc.MainDocumentPart.Document.Body.Elements<DocTable>();
+			ReWrite("Файл открыт", c.green); ReWrite("\nИдёт поиск нужной таблицы... ",c.purple);
+			DocTable specTable = null;
+			MainColumnNumbers = null;
+			int NsMax = 0;
+			foreach (DocTable table in tables)
+			{
+				var Header = table.Elements<TableRow>().ElementAt(0);
+				MainColumnNumbers = Header.GetMainColumnsIndexes();
+				if (MainColumnNumbers == null) continue;
+				specTable = table;
+				break;
+			}
+			if(specTable==null) throw new ArgumentException("Подходящей таблицы не найдено в .docx файле");
+			ReWrite("Нужная таблица найдена",c.green);
+			return specTable;
 		}
 
 		// internal class FormTableRow
@@ -174,25 +202,25 @@ namespace xml_js_Parser.Classes
 				if (tcs[i].InnerText.Contains(Table.CodeColumnName, StringComparison.OrdinalIgnoreCase)) res[0] = i;
 				else if (tcs[i].InnerText.Contains(Table.TextColumnName, StringComparison.OrdinalIgnoreCase)) res[1] = i;
 				else if (tcs[i].InnerText.Contains(Table.IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) res[2] = i;
-				else if (tcs[i].InnerText.Contains(Table.FormatControl, StringComparison.OrdinalIgnoreCase)) res[2] = i;
+				else if (tcs[i].InnerText.Contains(Table.FormatControl, StringComparison.OrdinalIgnoreCase)) res[3] = i;
 			}
 
-			if (res.Any(x => x == -1))
+			if (res.All(x => x != -1)) return res;
 			{
 				for (int i = 0; i < 3; i++)
 				{
-					if(res[i]!=-1) ReWrite(new []{"В таблице найден только столбец", i switch
+					if(res[i]!=-1) 
+						ReWrite(new []{"В таблице найден только столбец ", i switch
 					{
 						0 => "названий",
 						1 => "кодов",
 						2 => "обязательности"
-					} + "полей"}, new []{c.red, c.cyan});
+					} + " полей\n"}, new []{c.red, c.cyan});
 				}
 
 				return null;
 			}
 
-			return res;
 		}
 
 		// public static string GetFileText(string filepath, string FileTypeName = "")

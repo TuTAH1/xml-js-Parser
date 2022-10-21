@@ -22,6 +22,14 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using Color = System.Drawing.Color;
 using Table = xml_js_Parser.Classes.Table;
 
+// Bettercomments colors:
+// 696969 grey
+//:2cb02b green
+//!e4e40a yellow
+//\9e0d09 red
+//%583b16 dark-brown
+//TODO: 2693b7 blue-turquoise
+
 namespace Application
 {
 	static class Program
@@ -40,18 +48,22 @@ namespace Application
 		static void Main(string[] args) {
 			SetConsolePallete(DarkBlue:Color.FromArgb(9, 29, 69), DarkCyan:Color.FromArgb(9, 61, 69), Silver: Color.FromArgb(20,20,20));
 			Process.Start("Updater.exe");
-			RClr();
-			Clear();
-			ReWrite(new []{"xml-js Parser ", $"v{Version} ", "by ","Тит","ов Ив","ан"}, new []{c.lime, c.cyan, c.Default, c.lime,c.green,c.lime});
-
+		
 			while (true)
 			{
-				try
+				RClr();
+				Clear();
+				ReWrite(new []{"xml-js Parser ", $"v{Version} ", "by ","Тит","ов Ив","ан"}, new []{c.lime, c.cyan, c.Default, c.lime,c.green,c.lime});
+				try //TODO: автоматическй выбор тип парсинга, в зависимости от расширения файла
 				{
 					ReWrite("Выберите тип парсинга: \n");
+#if DEBUG
+	Parsing(ParsingType.docx);			
+#else
 					Parsing((ParsingType)Menu( ((ParsingType[])Enum.GetValues(typeof(ParsingType))).ToArray(
 								Type => new Option(GetTypeName(Type), Type.ToString())
 								)));
+#endif
 					WaitKey("выбрать другой файл");
 				}
 				catch (Exception e)
@@ -98,9 +110,9 @@ namespace Application
 					var xml = xmlFile.Doc;
 					var docxFilePath = xmlFile.Info.FullName.Slice(0, ".", true, true) + ".docx";
 					if (!File.Exists(docxFilePath))
-						docxFilePath = GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
+						docxFilePath =  GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
 
-					Table.Block DocxTable = new(GetFileDocx(docxFilePath), "docx"); 
+					Table.Block DocxTable = new(GetListFromDocx(docxFilePath), "docx"); 
 					Table.Blocks.AddRange(new []{DocxTable}); //: добавление таблицы из .docx к словарю
 
 					string xmlObject = Name("object"); //:<object> node name
@@ -129,13 +141,21 @@ namespace Application
 				{
 					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
 
-					var docxFilePath = GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
+					var docxFilePath = 
+#if DEBUG
+						@"C:\Users\TITAN\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx";				
+#else
+						GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
+#endif
 
-					var DocxTable = new Table(GetFileDocx(docxFilePath)); 
+					var DocxTable = new Table(GetDocxTable(docxFilePath)); // сделано.
+					//TODO: GenerateJsCode(Table Data)
 
 				} break;
 				case ParsingType.xsl:
-				{} break;
+				{
+					throw new NotImplementedException("xsl парсинг ещё не реализован");
+				} break;
 				default:
 					throw new ArgumentOutOfRangeException(nameof(parsingType), parsingType, null);
 			}
@@ -181,7 +201,7 @@ namespace Application
 			if (ruName != null)
 			{
 				optional = !quSwitch("\nПоле обязательно? ");
-				Table.Add(Code, ruName, optional);
+				Table.Blocks[^1].Add(Code, ruName, optional);
 			}
 
 			do

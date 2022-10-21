@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Office.CustomUI;
 using static Titanium.Consol;
 using Titanium;
@@ -24,58 +25,79 @@ namespace xml_js_Parser.Classes
 			Blocks = table.Blocks;
 		}
 
-		public Table(DocTable table)
+		public Table(DocTable Table)
 		{
-			int textColumnN = 2, codeColumnN = 3, optionalColumnN = 8, formatControlN = 9, N = 11; //:Номера столбцов по умолчанию
-			var tableRows = table.Elements<DocTableRow>() as DocTableRow[];
+			int textColumnN = 2, codeColumnN = 3, optionalColumnN = 8, formatControlN = 9; //:Номера столбцов по умолчанию
+			var tableRows = Table.Elements<DocTableRow>().ToArray();
+			var headerCells = tableRows[0].Elements<DocTableCell>().ToArray(Cell => Cell.InnerText);
+			for (var j = 0; j < headerCells.Length; j++)
+			{
+				var header = headerCells[j];
+				if (header.Contains(TextColumnName, StringComparison.OrdinalIgnoreCase)) textColumnN = j;
+				else if (header.Contains(CodeColumnName, StringComparison.OrdinalIgnoreCase)) codeColumnN = j;
+				else if (header.Contains(IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) optionalColumnN = j;
+				else if (header.Contains(FormatControl, StringComparison.OrdinalIgnoreCase)) formatControlN = j;
+			}
+
+			CreateTable(Table, textColumnN, codeColumnN, optionalColumnN, formatControlN);
+		}
+
+		public Table(DocTable Table, int TextColumnNumber, int CodeColumnNumber, int OptionalColumnNumber, int FormatColumnNumber) => CreateTable(Table, TextColumnNumber, CodeColumnNumber, OptionalColumnNumber, FormatColumnNumber);
+		private void CreateTable(DocTable Table, int TextColumnNumber, int CodeColumnNumber, int OptionalColumnNumber, int FormatColumnNumber)
+		{
+			if (TextColumnNumber <= 0) throw new ArgumentOutOfRangeException(nameof(TextColumnNumber));
+			if (CodeColumnNumber <= 0) throw new ArgumentOutOfRangeException(nameof(CodeColumnNumber));
+			if (OptionalColumnNumber <= 0) throw new ArgumentOutOfRangeException(nameof(OptionalColumnNumber));
+			if (FormatColumnNumber <= 0) throw new ArgumentOutOfRangeException(nameof(FormatColumnNumber));
+
+			var tableRows = Table.Elements<DocTableRow>().ToArray();
+			if (tableRows.Length <1) throw new ArgumentException("Таблица пуста");
 			Blocks = new List<Block>();
 			
-			for (var i = 0; i < tableRows.Length; i++)
+			for (var i = 1; i < tableRows.Length; i++) //! Добавление значения столбцов
 			{
 				var row = tableRows[i];
-				var cells = (row.Elements<DocTableCell>() as DocTableCell[]).ToArray(Cell => Cell.InnerText);
-				if (i == 0) //! Поиск номеров нужных столбцов
+				var cells = row.Elements<DocTableCell>().ToArray(Cell => Cell.InnerText);
+				switch (cells.Length)
 				{
-					for (var j = 0; j < cells.Length; j++)
+					//: Строка с названием блока или шага
+					case 1:
 					{
-						var header = cells[j];
-						if (header.Contains(TextColumnName, StringComparison.OrdinalIgnoreCase)) textColumnN = j;
-						else if (header.Contains(CodeColumnName, StringComparison.OrdinalIgnoreCase)) codeColumnN = j;
-						else if (header.Contains(IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) optionalColumnN = j;
-						else if (header.Contains(FormatControl, StringComparison.OrdinalIgnoreCase)) formatControlN = j;
-					}
-
-					N = cells.Length;
-				}
-				else //! Добавление значения столбцов
-				{
-					switch (cells.Length)
-					{
-						case 1:
+						if (!(cells[0].Contains("Блок") || cells[0].Contains("Шаг") || cells[0].IsNullOrEmpty()))
 						{
-							if (!(cells[0].Contains("Блок") || cells[0].Contains("Шаг") || cells[0].IsNullOrEmpty()))
-							{
-								ReWrite(new[] { "\nСтрока ", i.ToString(), " была пропущена", ", так как похожа на комментарий" }, new[] { c.gray, c.cyan, c.yellow, c.gray });
-							}
-							else 
-							{
-								if (cells[0].Contains("Блок")) //:Добавление блока (названия)
-									Blocks.Add(new Block(cells[0].Slice(".",".",LastEnd:false)));
-								else if (!cells[0].Contains("Шаг"))
-									ReWrite(new []{"Обнаружена строка, похожая на блок описания, но ключевых слов не найдено:\n", cells[0]}, new [] { c.red , c.gray});
-							}
+							ReWrite(new[] { "\nСтрока ", i.ToString(), " была пропущена", ", так как похожа на комментарий" }, new[] { c.gray, c.cyan, c.yellow, c.gray });
+						}
+						else 
+						{
+							if (cells[0].Contains("Блок")) //:Добавление блока (названия)
+								Blocks.Add(new Block(cells[0].Slice(new Regex(@"[Б|б]лок *\d+\.? *"),".",LastEnd:false)));
+							else if (cells[0].Contains("Шаг"))
+								Blocks.Add(new Block(cells[0].Slice(new Regex(@"Шаг ?\d ?\.?"), ".", true)));
+							else
+								ReWrite(new []{"Обнаружена строка, похожая на блок описания, но ключевых слов не найдено:\n", cells[0]}, new [] { c.red , c.gray});
+						}
 									
-						} break;
-						//: Первая строка с объедененной ячейкой или многостроковым значением
-						case > 1:
-							if (Blocks.Empty()) throw new InvalidOperationException("Не найдено описание блока");
-							Blocks.Last().Add(new Block.TableRow(cells[textColumnN], cells[codeColumnN], cells[optionalColumnN], cells[formatControlN], Blocks.Last()));
-							break;
-					}
+					} break;
+					//: Строка с данными
+					case > 1:
+						if (Blocks.Empty()) throw new InvalidOperationException("Не найдено описание блока");
+						Blocks.Last().Add(new Block.TableRow(cells[TextColumnNumber], cells[CodeColumnNumber], cells[OptionalColumnNumber], cells[FormatColumnNumber], Blocks.Last()));
+						break;
 				}
 			}
 
 		}
+
+		public Block.TableRow GetByCode(string code)
+		{
+			if (this == null || code == null) return null;
+
+			return (from block in this.Blocks
+				let r = block.rows.FirstOrDefault(row => row.Code == code)
+				where r != default
+				select r).First();
+		}
+
 		public class Block : IEnumerable
 		{
 			public string Name;
