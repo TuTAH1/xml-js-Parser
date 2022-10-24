@@ -12,7 +12,11 @@ using Application;
 using DocumentFormat.OpenXml.Wordprocessing;
 using DocumentFormat.OpenXml.Packaging;
 using Titanium;
+using static xml_js_Parser.Classes.Table;
+
 using DocTable =  DocumentFormat.OpenXml.Wordprocessing.Table;
+using DocTableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
+using DocTableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 
 namespace xml_js_Parser.Classes
 {
@@ -113,20 +117,29 @@ namespace xml_js_Parser.Classes
 		}
 
 		public class Data //TODO: придумать нормальное имя
-		{
+		{ //\ Нужно бы избавиться от зависимостей и заменить его на TableRow при методе DocxParse
 			public string? Code;
 			public string? Text;
 			public bool? Optional;
 			public string? Value; //\ НЕ ИСПОЛЬЗУЕТСЯ
 			public bool IsGroup;
 
-			public XElement xml;
+			public XElement xml; //\ Не используется при Docx parse
 
 			public Data(XElement Xml, string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
 			{
 				this.Code = code;
 				this.Value = Value;
 				xml = Xml;
+				Text = text;
+				Optional = optional;
+				IsGroup = isGroup;
+			}
+
+			public Data(string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
+			{
+				this.Code = code;
+				this.Value = Value;
 				Text = text;
 				Optional = optional;
 				IsGroup = isGroup;
@@ -223,6 +236,94 @@ namespace xml_js_Parser.Classes
 
 		}
 
+		public static TreeNode<Data> CreateTree(DocTable Table)
+		{
+			
+			int textColumnN = 2, codeColumnN = 3, optionalColumnN = 8, formatControlN = 9; //:Номера столбцов по умолчанию
+			var tableRows = Table.Elements<DocTableRow>().ToArray();
+			var headerCells = tableRows[0].Elements<DocTableCell>().ToArray(Cell => Cell.InnerText);
+			for (var j = 0; j < headerCells.Length; j++)
+			{
+				var header = headerCells[j];
+				if (header.Contains(TextColumnName, StringComparison.OrdinalIgnoreCase)) textColumnN = j;
+				else if (header.Contains(CodeColumnName, StringComparison.OrdinalIgnoreCase)) codeColumnN = j;
+				else if (header.Contains(IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) optionalColumnN = j;
+				else if (header.Contains(FormatControl, StringComparison.OrdinalIgnoreCase)) formatControlN = j;
+			}
+			
+			if (tableRows.Length <1) throw new ArgumentException("Таблица пуста");
+
+			TreeNode<Data> root = new TreeNode<Data>();
+			bool skip = false;
+
+			for (var i = 1; i < tableRows.Length; i++) //! Добавление значения столбцов
+			{
+				var row = tableRows[i];
+				var cells = row.Elements<DocTableCell>().ToArray(Cell => Cell.InnerText);
+				switch (cells.Length)
+				{
+					//! Строка с названием блока или шага
+					case 1:
+					{
+						if (!(cells[0].Contains("Блок") || cells[0].Contains("Шаг") || cells[0].IsNullOrEmpty()))
+						{
+							ReWrite(new[] { "\nСтрока ", i.ToString(), " была пропущена", ", так как похожа на комментарий" }, new[] { c.gray, c.cyan, c.yellow, c.gray });
+						}
+						else
+						{
+							if (cells[0].ToLower().ContainsAny("блок", "шаг")) //:Добавление блока (названия)
+							{
+								string name = cells[0].Slice(new Regex(@"[Б|б]лок *\d+\.? *|[Ш|ш]аг *\d+\.? *"), ".", LastEnd: false);
+								if (Program.SkipList.Contains((name, false)))
+									skip = true;
+								else
+								{
+									skip = false;
+									string code = GetCodeFromDictionary(name);
+									root.Add(new Data(code, name));
+								}
+							}
+							else
+							//	Blocks.Add(new Block(cells[0].Slice(new Regex(@"Шаг ?\d ?\.?"), ".", true)));
+							//else
+								ReWrite(new[] { "Обнаружена строка, похожая на блок описания, но ключевых слов не найдено:\n", cells[0] }, new[] { c.red, c.gray });
+						}
+									
+					} break;
+					//! Строка с данными
+					case > 1 when (!skip):
+						if (root.Empty) 
+							throw new InvalidOperationException("Не найдено описание блока"); //: Когда таблица запарсилась раньше строки "Блок #. Название блока. <...>"
+						if (new Regex(@"[а-я|А-Я]*").IsMatchT(cells[codeColumnN])||cells[codeColumnN].IsNullOrWhiteSpace()) continue; //: Когда в поле код пишется что-то вроде "не передаётся"
+						root[^1].Add(CreateData(cells[textColumnN], cells[codeColumnN], cells[optionalColumnN], cells[formatControlN])); //: Добавление данных в дерево
+						break;
+				}
+			}
+
+			return root;
+		}
+
+		public static string GetCodeFromDictionary(string name) //BUG: !=Text not working
+		{
+			var dic = Program.Dictionary;
+			if (dic == null || name == null) return null;
+
+			var dicStr = dic.rows.FirstOrDefault(row => row.Text == name)?? new Block.TableRow(null,name,null); //: Найти совпадение по имени, иначе создать TableRow
+			dicStr.Code ??= Program.Dictionary.AskCode(name);
+			return dicStr.Code;
+		}
+
+
+
+			static Data CreateData(string text, string code, string OptionalityText, string FormatControlText, Block Source = null)
+			{
+				return new Data(
+					code,
+					text,
+					OptionalityText.Contains("-") || FormatControlText.ContainsAny(new[] { "Поле отображается", "Поле видно" })
+				);
+			}
+
 		// public static string GetFileText(string filepath, string FileTypeName = "")
 		// {
 		// 	string filedata;
@@ -244,7 +345,7 @@ namespace xml_js_Parser.Classes
 		// 	return filedata;
 		// }
 
-		public static Table.Block GetDictionary(string filepath)
+		public static Table.Block GetDictionary(string filepath) //BUG: не добавляется IpId
 		{
 			string filedata;
 			if (!File.Exists(filepath))
@@ -273,22 +374,62 @@ namespace xml_js_Parser.Classes
 				string[] pair = lines[i].Split("=", StringSplitOptions.RemoveEmptyEntries);
 				if (pair.Length < 3)
 				{
-					if (pair.Length==2&&pair[0] == "!")
+					if (pair.Length==2)
 					{
-						var skipWords = pair[1].Split(',');
-						foreach (var word in skipWords) //: Можно сделать экранирование путём проверки на "\" в конце word
+						bool skipWord = pair[0] == "!";
+						bool skipCode = pair[1] == "!";
+						if (skipWord ^ skipCode)
 						{
-							Program.SkipList.Add(word);
+							var skipElems = pair[skipCode? 0 : 1].Split('\t');
+							foreach (var elem in skipElems) //: Можно сделать экранирование путём проверки на "\" в конце word
+							{
+								Program.SkipList.Add((elem, skipCode));
+							}
 						}
+						else
+							ReWrite(new []{"\nОшибка",$" чтения строки словаря {i}: ",lines[i],"\n"}, new []{c.red,c.gray,c.white,c.Null});
 					} else
 					if(!lines[i].IsNullOrEmpty()) 
-						ReWrite(new []{"\nОшибка",$" чтения строки словаря {i}: ",lines[i]}, new []{c.red,c.gray,c.silver});
+						ReWrite(new []{"\nОшибка",$" чтения строки словаря {i}: ",lines[i]}, new []{c.red,c.gray,c.white,c.Null});
 					continue;
 				}
 			
-				if (pair.Length != 3) ReWrite($"\nОшибка при чтении словаря в {i + 1}-й строке ({lines[i]}): должно быть 3 слова, а обнаружено {pair.Length}.");
-				else if (result.GetByCode(pair[0])!=null) {lines.RemoveAt(i); dataChanged = true;}
-				else result.Add(pair[0],pair[1],pair[2]=="1");
+				//if (pair.Length != 3) ReWrite($"\nОшибка при чтении словаря в {i + 1}-й строке ({lines[i]}): должно быть 3 слова, а обнаружено {pair.Length}.");
+				//else if (result.GetByCode(pair[0])!=null) {lines.RemoveAt(i); dataChanged = true;}
+				//TODO: Сделать отдельный класс для словаря, где несколько блоков с одним названием объединяются в один элемент класса (string code, string[] texts);
+				//TODO: тогда здесь будут проверяться result.GetByCode(pair[0]).Contains(pair[0])
+				else
+				{
+					bool? optional = pair[2] switch
+					{
+						"0" => false,
+						"1" => true,
+						_ => null
+					};
+				
+					if (optional!=null)
+					{
+						var texts = pair[1].Split("\t");
+
+						foreach (var text in texts)
+						{
+							result.Add(pair[0],text, (bool)optional);
+						}
+					}
+					else
+					{
+						if (pair[2] == "!")
+						{
+							Program.SkipList.Add((pair[0],true));
+							Program.SkipList.Add((pair[1],false));
+						}
+						else
+						{
+							ReWrite($"Ошибка при чтении словаря в {i+1}-й строке: опциональность должна быть одним из значений: [0,1,!], а является [{pair[2]}]");
+						}
+					}
+
+				}
 			}
 
 			if (!dataChanged) return result;

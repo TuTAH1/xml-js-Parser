@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DocumentFormat.OpenXml.EMMA;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -579,8 +580,11 @@ namespace Titanium {
 
 			#region String
 
-			public static bool ContainsAny(this string s, IEnumerable<string> sequence) => sequence.Any(s.Contains);
-			public static bool ContainsAll(this string s, IEnumerable<string> sequence) => sequence.All(s.Contains);
+			public static bool ContainsAny(this string s, IEnumerable<string> sequence) => sequence.Any(s.Contains); 
+			public static bool ContainsAny(this string s, params string[] sequence) => sequence.Any(s.Contains); //:24.10.2022 IEnumerable replaced with params
+			public static bool ContainsAll(this string s, IEnumerable<string> sequence) => sequence.All(s.Contains);//:24.10.2022 IEnumerable replaced with params
+
+			public static bool ContainsAll(this string s, params string[] sequence) => sequence.All(s.Contains);//:24.10.2022 IEnumerable replaced with params
 
 			public static int SymbolsCount(this string s)
 			{
@@ -784,6 +788,7 @@ namespace Titanium {
 				case string startsWith:
 					start = LastStart ? s.LastIndexOfEnd(startsWith) : s.IndexOfEnd(startsWith);
 					if (start < 0) start = 0;
+					if (IncludeStart) start += startsWith.Length;
 					break;
 				case Regex startRegex:
 					var match = LastStart? startRegex.Matches(s).Last() :  startRegex.Match(s);
@@ -801,7 +806,7 @@ namespace Titanium {
 
 			if (!BasicSlice) s = s.Slice(start);
 
-			switch (End) //!TODO: РЕАЛИЗОВАТЬ ОСТАЛЬНЫЕ ТИПЫ
+			switch (End)
 			{
 				case null:
 						end = s.Length;
@@ -813,7 +818,9 @@ namespace Titanium {
 					if (end > s.Length) end = s.Length;
 					break;
 				case string endsWith:
-					end = (LastEnd ? s.LastIndexOf(endsWith) : s.IndexOf(endsWith)) + (IncludeEnd? endsWith.Length : 0);
+					end = (LastEnd ? s.LastIndexOf(endsWith) : s.IndexOf(endsWith));
+					if(end<0) end = s.Length;
+					if (IncludeEnd) end += endsWith.Length;
 					break;
 				case Regex endregex:
 					var match = LastEnd? endregex.Matches(s).Last() :  endregex.Match(s);
@@ -1195,6 +1202,8 @@ namespace Titanium {
 
 			#region Enumerable
 
+			public static bool ContainsAny<T>(this IEnumerable<T> source, params T[] values) => source.Any(values.Contains);
+			public static bool ContainsAll<T>(this IEnumerable<T> source, params T[] values) => source.Any(values.Contains);
 			public static bool Empty<T>(this IEnumerable<T> s) => !s.Any(); 
 			public static Tgt[] ToArray<Tgt, Src>(this IEnumerable<Src> source, Func<Src, Tgt> Convert)
 			{

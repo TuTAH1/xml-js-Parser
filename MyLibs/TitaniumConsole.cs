@@ -1630,7 +1630,7 @@ namespace Titanium {
 		public static void ReWrite(string[] Strings, c[] TextColors = null, c[] BackgroundColors = null, int LinesUp = 0, int ShiftRight = 0, bool ClearLine = false, CPH CurPosH = CPH.None, CPV CurPosV = CPV.None, c ClearLineColor = c.Default, bool RestoreCurPos = false)
 		{ //:29.11.2021 Изменено поведение CPV и CPH, \n
 			//TODO: объединить оба ReWrite, создав два метода до и после Write
-			int StringsLength = Strings.Sum(s => s.Length);
+			int StringsLength = Strings.Sum(s => s?.Length?? 00);
 			TextColors??= SetDefaultColors(TextColors,Strings.Length);
 			BackgroundColors??= SetDefaultColors(BackgroundColors,Strings.Length);
 

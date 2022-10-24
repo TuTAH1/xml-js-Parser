@@ -10,7 +10,7 @@ using DocTable =  DocumentFormat.OpenXml.Wordprocessing.Table;
 using DocTableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
 using DocTableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 using DocumentFormat.OpenXml.Spreadsheet;
-
+using Application;
 
 namespace xml_js_Parser.Classes
 {
@@ -80,7 +80,7 @@ namespace xml_js_Parser.Classes
 					} break;
 					//: Строка с данными
 					case > 1:
-						if (Blocks.Empty()) throw new InvalidOperationException("Не найдено описание блока");
+						if (Blocks.Empty()) throw new InvalidOperationException("Не найдено описание блока"); //: Когда таблица запарсилась раньше строки "Блок #. Название блока. <...>"
 						Blocks.Last().Add(new Block.TableRow(cells[TextColumnNumber], cells[CodeColumnNumber], cells[OptionalColumnNumber], cells[FormatColumnNumber], Blocks.Last()));
 						break;
 				}
@@ -179,6 +179,12 @@ namespace xml_js_Parser.Classes
 				return this.rows.FirstOrDefault(row => row.Code == code);
 			}
 
+			public Block.TableRow GetByName(string name)
+			{
+				if (this == null || name == null) return null;
+
+				return this.rows.FirstOrDefault(row => row.Text == name);
+			}
 			public class TableRow
 			{
 				public string Text;

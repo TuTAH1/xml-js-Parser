@@ -40,11 +40,12 @@ namespace Application
 		public const string DictionaryPath = @"Файлы программы\Словарь.txt";
 		public const string ignore = "!ignore";
 		public const string skip = "!skip";
-		public static List<string> SkipList = new();
-		public static Table Table = null;
+		public static List<(string, bool isCode)> SkipList = new();
+		public static Table.Block Dictionary = new Table.Block();
+
 
 		public static Version Version => Assembly.GetExecutingAssembly().GetName().Version;
-		public static Version DicVer = new Version(1,2); //: Dictionary version (версия словаря)
+		public static Version DicVer = new Version(1,3); //: Dictionary version (версия словаря); Должно использоваться в Updater
 		static void Main(string[] args) {
 			SetConsolePallete(DarkBlue:Color.FromArgb(9, 29, 69), DarkCyan:Color.FromArgb(9, 61, 69), Silver: Color.FromArgb(20,20,20));
 			Process.Start("Updater.exe");
@@ -92,10 +93,11 @@ namespace Application
 		{
 			
 			ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
-			Table.Block Dictionary = GetDictionary(DictionaryPath); //: Чтение словаря
+			Table.Block FileDictionary = GetDictionary(DictionaryPath); //: Чтение словаря
 
-			if (Dictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
-			else ReWrite($"Словарь с {Dictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
+			if (FileDictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
+			else ReWrite($"Словарь с {FileDictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
+			Dictionary.Append(FileDictionary);
 
 			//TableMode = quSwitch(true, c.cyan, c.yellow, c.silver, "Таблица", "Словарь");
 			TreeNode<Data> tree = null;
@@ -113,7 +115,7 @@ namespace Application
 						docxFilePath =  GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
 
 					Table.Block DocxTable = new(GetListFromDocx(docxFilePath), "docx"); 
-					Table.Blocks.AddRange(new []{DocxTable}); //: добавление таблицы из .docx к словарю
+					Dictionary.Append(DocxTable); //: добавление таблицы из .docx к словарю
 
 					string xmlObject = Name("object"); //:<object> node name
 					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
@@ -129,7 +131,7 @@ namespace Application
 							//new TypesData("attrs"),
 							//new TypesData("entry", "key", "value")
 						}); //: Чтение всего xml и добавление из него элементов в дерево
-					Table = null;
+					Program.Dictionary = null;
 
 					if (tree.Empty) throw new ArgumentException("дерево пусто");
 					else ReWrite("\nДерево успешно прочитано", c.green, ClearLine: true);
@@ -141,15 +143,14 @@ namespace Application
 				{
 					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
 
-					var docxFilePath = 
+					var docxFilePath =
 #if DEBUG
 						@"C:\Users\TITAN\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx";				
 #else
 						GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
 #endif
-
-					var DocxTable = new Table(GetDocxTable(docxFilePath)); // сделано.
-					//TODO: GenerateJsCode(Table Data)
+					filePath = docxFilePath.Slice(0, ".");
+					tree = CreateTree(GetDocxTable(docxFilePath));
 
 				} break;
 				case ParsingType.xsl:
@@ -162,13 +163,13 @@ namespace Application
 
 			
 
-			var js = GenerateJsCode(tree);
+			var js = CodeGenerator.GenerateJsCode(tree);
 			saveFile(js);
 
 
 			void saveFile(string Text)
 			{
-				var fileName = filePath.Slice(0, ".", LastEnd: true) + ".js";
+				var fileName = filePath.Slice("\\",int.MaxValue, LastStart:true, LastEnd: true) + ".js";
 				ReWrite("\nВведите название файла: ");
 				fileName = ReadT(InputString: fileName).String();
 				filePath = filePath.Slice(0,"\\",false,true,true) + fileName;
@@ -189,7 +190,41 @@ namespace Application
 			}
 		}
 
-		public static string AskUser(this Table Table, string Code)
+		public static string AskCode(this Table.Block Dictionary, string ruName)
+		{
+			ReWrite(new[] { $"\nНе найдено имя переменной для ",ruName,". Напишите его: " }, new[] { c.red,c.cyan, c.white });
+			
+			var Code = ReadT(Placeholder: "! (удалить блок)").String();
+			var curPos = GetCurPos();
+			if (Code.StartsWith("!")) Code = null;
+			bool optional = true;
+			bool repeat = false;
+			if (Code != null)
+			{
+				optional = !quSwitch("\nПоле обязательно? ");
+				Dictionary.Add(Code, ruName, optional);
+			}
+
+			do
+			{
+				try
+				{
+					File.AppendAllText(DictionaryPath,  
+						Code==null?
+							$"\n!={ruName}" :
+							$"\n{Code}={ruName}={(optional? "1" : "0")}");
+				}
+				catch (Exception e)
+				{
+					ReWrite(new[] { "\nНе удалось сохранить словарь: ", e.Message + ". ", "Повторить попытку?" }, new[] { c.red, c.gray, c.Default });
+					repeat = quSwitch();
+				}
+			} while (repeat);
+
+			return Code;
+		}
+
+		public static string AskName(this Table.Block Dictionary, string Code)
 		{
 			ReWrite(new[] { $"\nНе найдено определение для ",Code,". Напишите его: " }, new[] { c.red,c.cyan, c.white });
 			
@@ -201,7 +236,7 @@ namespace Application
 			if (ruName != null)
 			{
 				optional = !quSwitch("\nПоле обязательно? ");
-				Table.Blocks[^1].Add(Code, ruName, optional);
+				Dictionary.Add(Code, ruName, optional);
 			}
 
 			do
@@ -210,7 +245,7 @@ namespace Application
 				{
 					File.AppendAllText(DictionaryPath,  
 						ruName==null?
-							$"\n!={Code}" :
+							$"\n{Code}=!" :
 							$"\n{Code}={ruName}={(optional? "1" : "0")}");
 				}
 				catch (Exception e)
@@ -221,115 +256,6 @@ namespace Application
 			} while (repeat);
 
 			return ruName;
-		}
-
-		private static string GenerateJsCode(TreeNode<Data> tree)
-		{
-			{
-				string js =
-					@"var response = JSON.parse(claimData);
-var result = {""Заявление"": {}};
-if(response.Order) result.Заявление = ResponseOrder(response.Order);
-JSON.stringify(result);
-
-
-function Docs(value, title)
-{
-    var result = {customNameLabel: {label:title}};
-    if(Array.isArray(value))
-    {
-        for(var i = 0; i < value.length; i++)
-        {
-            result[i] = {};
-            result[i].prop1 = {customNameLabel: {label: ""Тип"", value: value[i].AppliedDocument.Type}};
-            result[i].prop2 = {customNameLabel: {label: ""URL"", value: value[i].AppliedDocument.URL}};
-            result[i].prop3 = {customNameLabel: {label: ""Название документа"", value: value[i].AppliedDocument.Name}};
-        }
-    }
-    else
-    {
-        result.prop1 = {customNameLabel: {label: ""Тип"", value: value.AppliedDocument.Type}};
-        result.prop2 = {customNameLabel: {label: ""URL"", value: value.AppliedDocument.URL}};
-        result.prop3 = {customNameLabel: {label: ""Название документа"", value: value.AppliedDocument.Name}};
-    }
-    return result;
-}
-
-function ResponseOrder()
-{
-    var result = {};
-    result.prop1 = {customNameLabel: {label: ""Дата заявления"", value: response.statementDate}};
-    result.prop2 = {customNameLabel: {label: ""Тип"", value: response.type}};
-    result.prop3 = Order(response.Order, """;
-
-				ReWrite("\nВведите тип услуги: ");
-				js += ReadT(InputString: "Согласование документации").String() +
-				      @""");
-	return result;
-}
-
-function Order(value, title)
-{
-    var result = {customNameLabel: {label:title}};";
-
-				//! function Order(value, title)
-				ReWrite("\nИдёт генерация js кода...", c.purple);
-				List<string> funcs = new List<string>();
-				int k = 0;
-				foreach (TreeNode<Data> branch in tree)
-				{
-					k++;
-					var text = branch.Value.Text;
-					var codeName = branch.Value.Code;
-
-					js += "\n";
-					if(branch.Value.Optional == true)
-					{
-						js += @$"	if(value.{codeName}) ";
-					} else if (branch.Value.Optional!=false) ReWrite(new []{"\nНе найдена обязательность поля ", codeName}, new []{c.red,c.cyan});
-
-					js += @$" result.prop{k} = ";
-					if (branch.Empty)
-						js += @$"{{customNameLabel: {{label: ""{text}"", value: value.{codeName}}}}};";
-					else
-					{
-						//! Остальные функции
-						js += @$"{codeName}(value.{codeName}, ""{text}"");";
-						string func = "";
-						int i = 1;
-						foreach (TreeNode<Data> leave in branch)
-						{
-							text = leave.Value.Text;
-							codeName = leave.Value.Code;
-							func += "\n\t";
-							if (leave.Value.Optional == true)
-							{
-								func += @$"if(value.{codeName}) ";
-							}else if (leave.Value.Optional!=false)  ReWrite(new []{"Не найдена обязательность поля ", codeName}, new []{c.red,c.cyan});
-							func += $@"result.prop{i++} = {{customNameLabel: {{label: ""{text}"", value: {codeName}}}}};";
-						}
-
-						funcs.Add(Wrap(func, codeName));
-					}
-				}
-
-				js += @"
-}";
-
-				js += funcs.ToArray().ToStringT("\n");
-				ReWrite("\nГенерация js кода завершена", c.green);
-				return js;
-			}
-
-			string Wrap(string func, string code)
-			{
-				return $@"
-
-function {code}(value,title)
-{{
-	var result = {{customNameLabel: {{label:title}}}};
-" + func + "\n\n\treturn result;\n}";
-			}
 		}
 	}
 }
