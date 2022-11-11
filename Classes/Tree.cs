@@ -25,6 +25,8 @@ namespace xml_js_Parser.Classes
 			this.Childs = new List<TreeNode<T>>();
 		}
 
+		public TreeNode<T> this[int index] => Childs[index];
+
 		/// <summary>
 		/// Adds a TreeNode as a child to the current node
 		/// </summary>
@@ -155,10 +157,10 @@ namespace xml_js_Parser.Classes
 				var objCode = NodeData[0].NameType == null? null : obj.Element(Name(NodeData[0].NameType))?.Value.RemoveFrom(TypesFuncs.Side.End, "_a", "Auto");
 				if(objCode?.EndsWith("Editable") == true) continue;
 				var objValue = NodeData[0].ValueType == null? null : obj.Element(Name(NodeData[0].ValueType))?.Value;
-				var tableRow = Program.Table.GetByCode(objCode);
+				var tableRow = Program.Dictionary.GetByCode(objCode);
 				//var critical = objCode == null && objValue == null;
-				if (Program.SkipList.Contains(objCode)) tableRow = null;
-				else if (tableRow == null && NodeData[0].AskIfNotFound) Program.Table.AskUser(objCode);
+				if (Program.SkipList.Contains((objCode,false))) tableRow = null;
+				else if (tableRow == null && NodeData[0].AskIfNotFound) Program.Dictionary.AskName(objCode);
 
 				var leave = new TreeNode<Data>(new Data(obj, tableRow?.Code, tableRow?.Text.Escape(@"'""\"), tableRow?.Optional, objValue, tableRow==null)); //: эскапирование кавычек. Правиль
 

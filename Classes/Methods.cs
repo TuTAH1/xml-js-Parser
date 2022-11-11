@@ -12,7 +12,11 @@ using Application;
 using DocumentFormat.OpenXml.Wordprocessing;
 using DocumentFormat.OpenXml.Packaging;
 using Titanium;
+using static xml_js_Parser.Classes.Table;
+
 using DocTable =  DocumentFormat.OpenXml.Wordprocessing.Table;
+using DocTableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
+using DocTableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 
 namespace xml_js_Parser.Classes
 {
@@ -90,23 +94,52 @@ namespace xml_js_Parser.Classes
 				}
 			
 			}
+
+			public static XmlFile Get(string filepath)
+			{
+				var cursorPosition = GetCurPos();
+				try //:										Парсинг
+				{
+					ReWrite("\nИдёт парсинг xml... ", c.purple);
+					XDocument xml = XDocument.Load(filepath);
+					ReWrite("\nПарсинг успешно завершён", c.green);
+					return new XmlFile(xml, new FileInfo(filepath));
+				}
+				catch (Exception e)
+				{
+					ReWrite($"\nОшибка: {e.Message}", c.red, ClearLine: true);
+					ReWrite(" (повторите попытку)", c.Default);
+					SetCurPos(cursorPosition);
+					return null;
+				}
+			
+			}
 		}
 
 		public class Data //TODO: придумать нормальное имя
-		{
+		{ //\ Нужно бы избавиться от зависимостей и заменить его на TableRow при методе DocxParse
 			public string? Code;
 			public string? Text;
 			public bool? Optional;
 			public string? Value; //\ НЕ ИСПОЛЬЗУЕТСЯ
 			public bool IsGroup;
 
-			public XElement xml;
+			public XElement xml; //\ Не используется при Docx parse
 
 			public Data(XElement Xml, string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
 			{
 				this.Code = code;
 				this.Value = Value;
 				xml = Xml;
+				Text = text;
+				Optional = optional;
+				IsGroup = isGroup;
+			}
+
+			public Data(string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
+			{
+				this.Code = code;
+				this.Value = Value;
 				Text = text;
 				Optional = optional;
 				IsGroup = isGroup;
@@ -174,25 +207,101 @@ namespace xml_js_Parser.Classes
 				if (tcs[i].InnerText.Contains(Table.CodeColumnName, StringComparison.OrdinalIgnoreCase)) res[0] = i;
 				else if (tcs[i].InnerText.Contains(Table.TextColumnName, StringComparison.OrdinalIgnoreCase)) res[1] = i;
 				else if (tcs[i].InnerText.Contains(Table.IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) res[2] = i;
-				else if (tcs[i].InnerText.Contains(Table.FormatControl, StringComparison.OrdinalIgnoreCase)) res[2] = i;
+				else if (tcs[i].InnerText.Contains(Table.FormatControl, StringComparison.OrdinalIgnoreCase)) res[3] = i;
 			}
 
-			if (res.Any(x => x == -1))
+			if (res.All(x => x != -1)) return res;
 			{
 				for (int i = 0; i < 3; i++)
 				{
-					if(res[i]!=-1) ReWrite(new []{"В таблице найден только столбец", i switch
+					if(res[i]!=-1) 
+						ReWrite(new []{"В таблице найден только столбец ", i switch
 					{
 						0 => "названий",
 						1 => "кодов",
 						2 => "обязательности"
-					} + "полей"}, new []{c.red, c.cyan});
+					} + " полей\n"}, new []{c.red, c.cyan});
 				}
 
 				return null;
 			}
 
-			return res;
+		}
+
+		public static TreeNode<Data> CreateTree(DocTable Table)
+		{
+			
+			int textColumnN = 2, codeColumnN = 3, optionalColumnN = 8, formatControlN = 9; //:Номера столбцов по умолчанию
+			var tableRows = Table.Elements<DocTableRow>().ToArray();
+			var headerCells = tableRows[0].Elements<DocTableCell>().ToArray(Cell => Cell.InnerText);
+			for (var j = 0; j < headerCells.Length; j++)
+			{
+				var header = headerCells[j];
+				if (header.Contains(TextColumnName, StringComparison.OrdinalIgnoreCase)) textColumnN = j;
+				else if (header.Contains(CodeColumnName, StringComparison.OrdinalIgnoreCase)) codeColumnN = j;
+				else if (header.Contains(IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) optionalColumnN = j;
+				else if (header.Contains(FormatControl, StringComparison.OrdinalIgnoreCase)) formatControlN = j;
+			}
+			
+			if (tableRows.Length <1) throw new ArgumentException("Таблица пуста");
+
+			TreeNode<Data> root = new TreeNode<Data>();
+			bool skip = false;
+
+			for (var i = 1; i < tableRows.Length; i++) //! Добавление значения столбцов
+			{
+				var row = tableRows[i];
+				var cells = row.Elements<DocTableCell>().ToArray(Cell => Cell.InnerText);
+				switch (cells.Length)
+				{
+					//! Строка с названием блока или шага
+					case 1:
+					{
+						if (!(cells[0].Contains("Блок") || cells[0].Contains("Шаг") || cells[0].IsNullOrEmpty()))
+						{
+							ReWrite(new[] { "\nСтрока ", i.ToString(), " была пропущена", ", так как похожа на комментарий" }, new[] { c.gray, c.cyan, c.yellow, c.gray });
+						}
+						else
+						{
+							if (cells[0].ToLower().ContainsAny("блок", "шаг")) //:Добавление блока (названия)
+							{
+								string name = cells[0].Slice(new Regex(@"[Б|б]лок *\d+\.? *|[Ш|ш]аг *\d+\.? *"), ".", LastEnd: false);
+								if (Program.SkipList.Contains((name, false)))
+									skip = true;
+								else
+								{
+									skip = false;
+									var el = GetCodeFromDictionary(name);
+									root.Add(new Data(code, name));
+								}
+							}
+							else
+							//	Blocks.Add(new Block(cells[0].Slice(new Regex(@"Шаг ?\d ?\.?"), ".", true)));
+							//else
+								ReWrite(new[] { "Обнаружена строка, похожая на блок описания, но ключевых слов не найдено:\n", cells[0] }, new[] { c.red, c.gray });
+						}
+									
+					} break;
+					//! Строка с данными
+					case > 1 when (!skip):
+						if (root.Empty) 
+							throw new InvalidOperationException("Не найдено описание блока"); //: Когда таблица запарсилась раньше строки "Блок #. Название блока. <...>"
+						if (new Regex(@"[а-я|А-Я]*").IsMatchT(cells[codeColumnN])||cells[codeColumnN].IsNullOrWhiteSpace()) continue; //: Когда в поле код пишется что-то вроде "не передаётся"
+						root[^1].Add(CreateData(cells[textColumnN], cells[codeColumnN], cells[optionalColumnN], cells[formatControlN])); //: Добавление данных в дерево
+						break;
+				}
+			}
+
+			return root;
+		}
+
+		static Data CreateData(string text, string code, string OptionalityText, string FormatControlText, Block Source = null)
+		{
+			return new Data(
+				code,
+				text,
+				OptionalityText.Contains("-") || FormatControlText.ContainsAny(new[] { "Поле отображается", "Поле видно" })
+			);
 		}
 
 		// public static string GetFileText(string filepath, string FileTypeName = "")
@@ -216,7 +325,7 @@ namespace xml_js_Parser.Classes
 		// 	return filedata;
 		// }
 
-		public static Table.Block GetDictionary(string filepath)
+		public static Table.Block GetDictionary(string filepath) //BUG: не добавляется IpId
 		{
 			string filedata;
 			if (!File.Exists(filepath))

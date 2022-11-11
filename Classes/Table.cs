@@ -10,7 +10,6 @@ using DocTableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
 using DocTableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 using DocumentFormat.OpenXml.Spreadsheet;
 
-
 namespace xml_js_Parser.Classes
 {
 	public class Table : IEnumerable

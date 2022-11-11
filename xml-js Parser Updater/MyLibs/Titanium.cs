@@ -1,16 +1,10 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Numerics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -579,8 +573,11 @@ namespace Titanium {
 
 			#region String
 
-			public static bool ContainsAny(this string s, IEnumerable<string> sequence) => sequence.Any(s.Contains);
-			public static bool ContainsAll(this string s, IEnumerable<string> sequence) => sequence.All(s.Contains);
+			public static bool ContainsAny(this string s, IEnumerable<string> sequence) => sequence.Any(s.Contains); 
+			public static bool ContainsAny(this string s, params string[] sequence) => sequence.Any(s.Contains); //:24.10.2022 IEnumerable replaced with params
+			public static bool ContainsAll(this string s, IEnumerable<string> sequence) => sequence.All(s.Contains);//:24.10.2022 IEnumerable replaced with params
+
+			public static bool ContainsAll(this string s, params string[] sequence) => sequence.All(s.Contains);//:24.10.2022 IEnumerable replaced with params
 
 			public static int SymbolsCount(this string s)
 			{
@@ -643,7 +640,7 @@ namespace Titanium {
 			/// Makes s.Length be equal to <paramref name="FixedLength"/> by adding <paramref name="Offset"/> symbols if it's too short or cutting it if it's too long
 			/// </summary>
 			/// <param name="s"></param>
-			/// <param name="FixedLengtharam>
+			/// <param name="FixedLengtharam">
 			/// <param name="Align">The position of <see cref="s"/> if it's too short . If it's too long, it will be always aligned Left</param>
 			/// <param name="Filter"></param>
 			/// <param name="Offset">Positive is right, negative is left. Will be sliced if out of range</param>
@@ -725,214 +722,152 @@ namespace Titanium {
 
 			public enum Positon: byte { left,center,right}
 
-			// /// <summary>
-			// /// Slices the string form <paramref name="Start"/> to <paramref name="End"/> <para></para>
-			// /// Supported types: <typeparamref name="int"></typeparamref>, <typeparamref name="string"></typeparamref>, <typeparamref name="Regex"></typeparamref>, <typeparamref name="Func&lt;char,bool&gt;"></typeparamref>;
-			// /// </summary>
-			// /// <typeparam name="Ts">Type of the <paramref name="Start"/></typeparam>
-			// /// <typeparam name="Te">Type of the <paramref name="End"/></typeparam>
-			// /// <param name="s"></param>
-			// /// <param name="Start">Start of the result string</param>
-			// /// <param name="End">End of the result string</param>
-			// /// <param name="AlwaysReturnString">return <paramref name="s"/> if <paramref name="Start"/> or <paramref name="End"/> not found (may be half-cutted)</param>
-			// /// <param name="LastStart"></param>
-			// /// <param name="LastEnd"></param>
-			// /// <param name="IncludeStart">Include <paramref name="Start"/> symbols (doesn't do anything if <typeparamref name="Ts"/> is <typeparamref name="int"/></param>
-			// /// <param name="IncludeEnd">Include <paramref name="End"/> symbols (doesn't do anything if <typeparamref name="Te"/> is <typeparamref name="int"/></param>
-			// /// <returns></returns>
-			// /// <exception cref=""></exception>
-			// public static string Slice<Ts, Te>(this string s, Ts? Start = default, Te? End = default, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false)
-			// {
-			// 	int start = 0;
-			// 	switch (Start)
-			// 	{
-			// 		case int res:
-			// 			start = res;
-			// 			break;
-			// 		case string res:
-			// 			start = Start == null ? 0 : LastStart ? s.LastIndexOfEnd(res) : s.IndexOfEnd(res); //!TODO: РЕАЛИЗОВАТЬ ОСТАЛЬНЫЕ ТИПЫ
-			// 			break;
-			// 		default:
-			// 			throw new TypeInitializationException(typeof(Ts).FullName, new ArgumentException($"Type of {nameof(Start)} is not supported"));
-			//
-			// 	}
-			// 	if (start < 0) return  AlwaysReturnString? s : null;
-			// }
+		/// <summary>
+		/// Slices the string form <paramref name="Start"/> to <paramref name="End"/> <para></para>
+		/// Supported types: <typeparamref name="int"></typeparamref>, <typeparamref name="string"></typeparamref>, <typeparamref name="Regex"></typeparamref>, <typeparamref name="Func&lt;char,bool&gt;"/>.
+		/// </summary>
+		/// <typeparam name="Ts">Type of the <paramref name="Start"/></typeparam>
+		/// <typeparam name="Te">Type of the <paramref name="End"/></typeparam>
+		/// <param name="s"></param>
+		/// <param name="Start"> Start of the result string <para/>
+		///<list type="table"></list>
+		/// /// <item><typeparamref name="default"/>: 0 (don't cut start)</item>
+		/// <item><typeparamref name="int"/>: Start index of the result string (inverse direction if negative)</item>
+		/// <item><typeparamref name="string"/>: The string inside <paramref name="s"/> that will be the start position of the result</item>
+		/// <item><typeparamref name="Regex"/>: The string inside <paramref name="s"/> matches Regex that will be the start position of the result</item>
+		/// <item><typeparamref name="Func&amp;lt;char,bool&amp;gt;"/>: Условия, которым должны удовлетворять символы начала строки (по функции на 1 символ)</item>
+		/// </param>
+		/// <param name="End">End of the result string <para></para>
+		///<list type="table"></list>
+		///  <item><typeparamref name="default"/>: Max (don't cut end)</item>
+		/// <item><typeparamref name="int"/>: End index of the result string (inverse direction if negative)</item>
+		/// <item><typeparamref name="string"/>: The string inside <paramref name="s"/> that will be the end position of the result</item>
+		/// <item><typeparamref name="Regex"/>: The string inside <paramref name="s"/> matches Regex that will be the end position of the result</item>
+		/// <item><typeparamref name="Func&amp;lt;char,bool&amp;gt;"/>: Условия, которым должны удовлетворять символы конца строки (по функции на 1 символ)</item>
+		/// </param>
+		/// <param name="AlwaysReturnString">return <paramref name="s"/> if <paramref name="Start"/> or <paramref name="End"/> not found (may be half-cutted)</param>
+		/// <param name="LastStart">if true, the last occurance of the <paramref name="Start"/> will be searched <para/> (doesn't do anything if <paramref name="Start"/> is <typeparamref name="int"/>)</param>
+		/// <param name="LastEnd">if true, the last occurance of the <paramref name="End"/> will be searched <para/> (doesn't do anything if <paramref name="End"/> is <typeparamref name="int"/>)</param>
+		/// <param name="IncludeStart">Include <paramref name="Start"/> symbols <para/> (doesn't do anything if <paramref name="Start"/> is <typeparamref name="int"/>)</param>
+		/// <param name="IncludeEnd">Include <paramref name="End"/> symbols <para/> (doesn't do anything if <paramref name="End"/> is <typeparamref name="int"/>)</param>
+		/// <returns></returns>
+		/// <exception cref=""></exception>
+		public static string Slice<Ts, Te>(this string s, Ts? Start, Te? End, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false, bool SliceFromStart = true)
+		{
+			if (s.IsNullOrEmpty())
+				if (AlwaysReturnString)
+					return null;
+				else
+					throw new ArgumentNullException(nameof(s));
 
-			/// <summary>
-			/// Slices the string form <paramref name="Start"/> to <paramref name="End"/> not including <paramref name="End"/>. Same as c# 8's s[start..end]
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="Start">if negative, counts from end</param>
-			/// <param name="End">if negative, counts from end</param>
-			/// <returns></returns>
-			public static string Slice(this string s, int Start = 0, int End = Int32.MaxValue)
+			bool BasicSlice = Start is int or null && End is int or null;
+
+			int? start = 0;
+			int? end = s.Length-1;
+
+			int GetStart()
 			{
-				if (End < 0) End = s.Length + End;
-				if (Start < 0) Start = s.Length + Start;
-				//if (Start < 0) throw new ArgumentOutOfRangeException(nameof(Start),Start,null);
-				if (Start > End) throw new ArgumentOutOfRangeException(nameof(Start),Start,$"start ({Start}) is be bigger than end ({End})");
-				if (End > s.Length) End = s.Length;
-				return s.Substring(Start, (End - Start));
+				start = IndexOfT(s, Start, LastStart, IncludeStart);
+
+				return start == null || start >= s.Length ? 
+					AlwaysReturnString ? 0 : throw new IndexOutOfRangeException(nameof(start)) :
+					(int)start;
 			}
 
-			/// <summary>
-			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последнего : первого) появления <paramref name="StartsWith"/> и заканчивая (<paramref name="LastEnd"/>? последним : первым) появлением <paramref name="EndsWith"/>
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
-			/// <param name="EndsWith">Строка, до которой будет происходить срезание</param>
-			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
-			/// <param name="LastStart">Начинать поиск <paramref name="StartsWith"/> с конца</param>
-			/// <param name="LastEnd">Начинать поиск <paramref name="EndsWith"/> с конца</param>
-			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
-			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
-			/// <returns></returns>
-			public static string Slice(this string s, string StartsWith, string EndsWith, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false) //:25.08.2022 includeStart, includeEnd
+			int GetEnd()
 			{
-				var start = StartsWith == null? 0 : LastStart? s.LastIndexOfEnd(StartsWith) : s.IndexOfEnd(StartsWith);
-				if (start < 0) return  AlwaysReturnString? s : null;
+				end = IndexOfT(s[1..], End, LastEnd, !IncludeEnd); //: starts from 1, so if start and end are the same, it won't be equal
 
-				s = s.Slice(start);
-
-				var end = EndsWith==null? s.Length-1 : LastEnd? s.LastIndexOf(EndsWith) : s.IndexOf(EndsWith);
-				if (end < 0) return  AlwaysReturnString? s : null;
-
-
-				return (IncludeStart? StartsWith : "") + s.Slice(0,end) + (IncludeEnd? EndsWith : "");
+				
+				if (BasicSlice && start > end) Swap(ref start, ref end);
+				return end ?? (AlwaysReturnString ? s.Length - 1 : throw new IndexOutOfRangeException(nameof(end)));
 			}
 
-			/// <summary>
-			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последнего : первого) появления <paramref name="StartsWith"/> и заканчивая (<paramref name="LastEnd"/>? последним : первым) появлением <paramref name="EndsWith"/>
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
-			/// <param name="EndsWith">Строка, до которой будет происходить срезание</param>
-			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
-			/// <param name="LastStart">Начинать поиск Start с конца</param>
-			/// <param name="LastEnd">Начинать поиск Start с конца</param>
-			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
-			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
-			/// <returns></returns>
-			public static string SliceFromEnd(this string s, string StartsWith = null, string EndsWith = null, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false) //:25.08.2022 includeStart, includeEnd
+			try
 			{
-				var end = EndsWith==null? s.Length-1 : LastEnd? s.LastIndexOf(EndsWith) : s.IndexOf(EndsWith);
-				if (end < 0) return  AlwaysReturnString? s : null;
+				if (BasicSlice)
+				{
+					start = GetStart();
+					end = GetEnd();
+					if (end < 0) end = s.Length + end; //: count from end if negative
+					if (end > s.Length) end = s.Length;
+					return s.Substring((int)start, (int)(end - start));
+				}
 
-				s = s.Slice(0, end);
+				if (SliceFromStart)
+				{
+					var intStart = GetStart();
 
-				var start = StartsWith == null? 0 : LastStart? s.LastIndexOfEnd(StartsWith) : s.IndexOfEnd(StartsWith);
-				if (start < 0) return  AlwaysReturnString? s : null;
+					s = s.Slice(intStart); //:slicing so, end == start isn't possible
 
-				return IncludeStart? StartsWith : "" + s.Slice(start) + (IncludeEnd? EndsWith : "");
+					return s.Slice(0, GetEnd());
+				}
+				else
+				{
+					end = GetEnd();
+					s = s.Slice(0, (int)end); //:slicing so, end == start isn't possible
+					return s.Slice(GetStart());
+				}
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
+		public static int? IndexOfT<T>(this string s, T Target, bool LastTarget = false, bool EndOfTheTarget = false)
+		{
+			int? index;
+			switch (Target)
+			{
+				case null:
+					return null;
+				case int indexInt:
+					return indexInt;
+					//if (start < 0) start = s.Length + start; //: count from end if negative
+				case string indexString:
+					index = LastTarget ? s.LastIndexOf(indexString) : s.IndexOf(indexString);
+					if (index < 0) return null;
+					if (EndOfTheTarget) return index + indexString.Length;
+					return index;
+				case Regex indexRegex:
+					var match = LastTarget? indexRegex.Matches(s).Last() :  indexRegex.Match(s);
+					return match.Index>=0? 
+						(match.Index + (EndOfTheTarget ? 0 : match.Length)) : null;
+				case Func<char,bool>[] indexConditions:
+					return indexConditions?.Any()==true? 
+						s.IndexOfT(indexConditions, IndexOfEnd: !EndOfTheTarget, RightDirection: !LastTarget) : 0;
+				default:
+					throw new TypeInitializationException(typeof(T).FullName, new ArgumentException($"Type of {nameof(Target)} is not supported"));
 			}
 
-			/// <summary>
-			/// Обрезает строку, начиная со <paramref name="Start"/> и заканчивая с (<paramref name="LastEnd"/>? последним : первым) появлением <paramref name="EndsWith"/>
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="Start">Индекс начала среза</param>
-			/// <param name="EndsWith">Строка, до которой будет происходить срезание</param>
-			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
-			/// <param name="LastEnd">Начинать поиск Start с конца</param>
-			/// <param name="IncludeEnd">Включать слово <paramref name="EndsWith"/></param>
-			/// <returns></returns>
-			public static string Slice(this string s, int Start, string EndsWith, bool AlwaysReturnString = false, bool LastEnd = true, bool IncludeEnd = false) //:25.08.2022 includeEnd
-			{
-				if (Start < 0) Start = s.Length + Start;
-				var end = LastEnd? s.LastIndexOf(EndsWith) : s.IndexOf(EndsWith);
-				if (end < 0) return AlwaysReturnString? s : null;
+			return null;
+		}
 
-				return s.Slice(Start, end) + (IncludeEnd? EndsWith : "");
-
-			}
-
-			/// <summary>
-			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последнего : первого) появления <paramref name="StartsWith"/> и заканчивая <paramref name="End"/>/>
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="StartsWith">Строка, с которой будет происходить срезание</param>
-			/// <param name="AlwaysReturnString">Возвращать строку, если начало или конец не найдены (иначе будет возвращен null)</param>
-			/// <param name="LastStart">Начинать поиск Start с конца</param>
-			/// <param name="IncludeStart">Включать слово <paramref name="StartsWith"/></param>
-			/// <returns></returns>
-			public static string Slice(this string s, string StartsWith, int End = Int32.MaxValue, bool AlwaysReturnString = false, bool LastStart = false, bool IncludeStart = false) //:25.08.2022 includeStart
-			{
-				if (End < 0) End = s.Length + End;
-				var start = LastStart? s.LastIndexOfEnd(StartsWith) : s.IndexOfEnd(StartsWith);
-				if (start < 0) return  AlwaysReturnString? s : null;
-
-				return IncludeStart? StartsWith : "" + s.Slice(start, End);
-
-			}
-
-			/// <summary>
-			/// Обрезает строку, начиная с (<paramref name="LastStart"/>? последней : первой) строки, удовлетворяющие всем <paramref name="StartConditions"/> и заканчивая с (<paramref name="LastEnd"/>? последней : первой) строки, удовлетворяющие всем <paramref name="EndConditions"/>
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="StartConditions">Условия, которым должны удовлетворять символы начала строки (по функции на 1 символ)</param>
-			/// <param name="EndConditions">Условия, которым должны удовлетворять символы конца строки (по функции на 1 символ)</param>
-			/// <param name="AlwaysReturnString">При неудачном поиске, принять параметры start/end по умолчанию (0,^1)</param>
-			/// <param name="LastStart">Начинать поиск Start с конца</param>
-			/// <param name="LastEnd">Начинать поиск Start с конца</param>
-			/// <param name="IncludeStart">Включать слово, удовлетворяющее всем <paramref name="StartConditions"/></param>
-			/// <param name="IncludeEnd">Включать слово, удовлетворяющее всем <paramref name="EndConditions"/></param>
-			/// <returns></returns>
-			public static string Slice(this string s, Func<char,bool>[] StartConditions, Func<char,bool>[] EndConditions = null, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false) //:22.09.2022 Last/Include Start/End; BEHAVIOUR changed - now Start/End Conditions will have default values (0, end) in case of null; BEHAVIOUR changed - now if AlwaysReturnString it do slice even if one of Start/End not found.
-			{
-
-				/*if (StartConditions?.Any()!=true) throw new ArgumentNullException(nameof(StartConditions), "Условия начальной строки не заданы");
-				if (EndConditions?.Any()!=true) throw new ArgumentNullException(nameof(EndConditions), "Условия конечной строки не заданы");*/
-
-				var start = StartConditions?.Any()==true? 
-					s.IndexOfT(StartConditions, IndexOfEnd: !IncludeStart, RightDirection: !LastStart) : 0;
-				if (start < 0)
-					if (AlwaysReturnString)
-						start = 0;
-					else
-						return null;
-					
-
-				var end = EndConditions?.Any()!=true? 
-					s.IndexOfT(EndConditions,IndexOfEnd: IncludeEnd, RightDirection: !LastEnd) : 0;
-				if (end < 0) 
-					if (AlwaysReturnString)
-						end = s.Length-1;
-					else
-						return null;
-
-				return s.Slice(start, end);
-			}
-
-			/// <summary>
-			/// Обрезает строку, начиная с <paramref name="Start"/> и заканчивая с (<paramref name="LastEnd"/>? последней : первой) строки, удовлетворяющие всем <paramref name="EndConditions"/>
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="EndConditions">Условия, которым должны удовлетворять символы конца строки (по функции на 1 символ)</param>
-			/// <param name="AlwaysReturnString">При неудачном поиске, принять параметры start/end по умолчанию (0,^1)</param>
-			/// <param name="LastEnd">Начинать поиск Start с конца</param>
-			/// <param name="IncludeEnd">Включать слово, удовлетворяющее всем <paramref name="EndConditions"/></param>
-			/// <returns></returns>
-			public static string Slice(this string s, int Start, Func<char,bool>[] EndConditions, bool AlwaysReturnString = false, bool LastEnd = true, bool IncludeEnd = false) //:22.09.2022 Last/Include Start; BEHAVIOUR changed - now Start Conditions will have default values (0) in case of null
-			{
-				if (Start < 0) Start = s.Length + Start;
-
-				var end = EndConditions?.Any()!=true? 
-					s.IndexOfT(EndConditions,IndexOfEnd: IncludeEnd, RightDirection: !LastEnd) : 0;
-				if (end < 0) return  AlwaysReturnString? s.Slice(Start) : null;
-
-				return s.Slice(Start, end);
-			}
-
-			public static string Slice(this string s, int Start, Regex EndRegex, bool AlwaysReturnString = false)
-			{
-				if (Start < 0) Start = s.Length + Start;
-				var end = EndRegex.Match(s).Index;
-				if (end < 0) return  AlwaysReturnString? s : null;
-
-				return s.Slice(Start, end);
-			}
-
+		/// <summary>
+		/// Removes <paramref name="s"/> symbols from 0 to <paramref name="Start"/><para></para>
+		/// Supported types: <typeparamref name="int"></typeparamref>, <typeparamref name="string"></typeparamref>, <typeparamref name="Regex"></typeparamref>, <typeparamref name="Func&lt;char,bool&gt;"></typeparamref>;
+		/// </summary>
+		/// <typeparam name="Ts">Type of the <paramref name="Start"/></typeparam>
+		/// <param name="s"></param>
+		/// <param name="Start"> Start of the result string <para/>
+		///<list type="table"></list>
+		/// /// <item><typeparamref name="default"/>: 0 (don't cut start)</item>
+		/// <item><typeparamref name="int"/>: Start index of the result string (inverse direction if negative)</item>
+		/// <item><typeparamref name="string"/>: The string inside <paramref name="s"/> that will be the start position of the result</item>
+		/// <item><typeparamref name="Regex"/>: The string inside <paramref name="s"/> matches Regex that will be the start position of the result</item>
+		/// <item><typeparamref name="Func&amp;lt;char,bool&amp;gt;"/>: Условия, которым должны удовлетворять символы начала строки (по функции на 1 символ)</item>
+		/// </param>
+		
+		/// <param name="AlwaysReturnString">return <paramref name="s"/> if <paramref name="Start"/> or <paramref name="End"/> not found (may be half-cutted)</param>
+		/// <param name="LastStart">if true, the last occurance of the <paramref name="Start"/> will be searched <para/> (doesn't do anything if <paramref name="Start"/> is <typeparamref name="int"/>)</param>
+		/// <param name="IncludeStart">Include <paramref name="Start"/> symbols <para/> (doesn't do anything if <paramref name="Start"/> is <typeparamref name="int"/>)</param>
+		
+		/// <returns></returns>
+		/// <exception cref=""></exception>
+		public static string Slice<Ts>(this string s, Ts? Start, bool AlwaysReturnString = false, bool LastStart = false, bool IncludeStart = false) =>
+			s.Slice(Start, int.MaxValue, AlwaysReturnString, LastStart, false, IncludeStart, false);
+		
 			private static int IndexOfEnd(this string s, string s2)
 			{
 				if (s == null)
@@ -1242,6 +1177,25 @@ namespace Titanium {
 				return s+addiction;
 			}
 
+			public static string ToReadableString<T>(this IEnumerable<T> sequence, string Separator = ", ", string LastSeparator = null, string FirstSeparator = null)
+			{
+				LastSeparator ??= Separator;
+				FirstSeparator ??= Separator;
+				string result = "";
+				int Length = sequence.Count();
+
+				for (int i = 0; i < Length; i++)
+				{
+					result+= sequence.ElementAt(i++).ToString();
+
+					if (i >= Length) continue;
+					if (i == 1) result += FirstSeparator;
+					else if (i == Length - 1) result += LastSeparator;
+					else result += Separator;
+				}
+
+				return result;
+			}
 
 			#endregion
 
@@ -1253,6 +1207,8 @@ namespace Titanium {
 
 			#region Enumerable
 
+			public static bool ContainsAny<T>(this IEnumerable<T> source, params T[] values) => source.Any(values.Contains);
+			public static bool ContainsAll<T>(this IEnumerable<T> source, params T[] values) => source.Any(values.Contains);
 			public static bool Empty<T>(this IEnumerable<T> s) => !s.Any(); 
 			public static Tgt[] ToArray<Tgt, Src>(this IEnumerable<Src> source, Func<Src, Tgt> Convert)
 			{
