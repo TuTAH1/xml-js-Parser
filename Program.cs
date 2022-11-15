@@ -37,10 +37,7 @@ namespace Application
 		//public static Dictionary<Regex, TableRow> Dictionary = new();
 		//public static List<Regex> IgnoreList = new();
 		//public static List<Regex> SkipList = new();
-		public const string DictionaryPath = @"Файлы программы\Словарь.txt";
-		public const string ignore = "!ignore";
-		public const string skip = "!skip";
-		public static List<(string, bool isCode)> SkipList = new();
+		
 		public static Table.Block Dictionary = new Table.Block();
 
 
@@ -60,8 +57,10 @@ namespace Application
 				try //TODO: автоматическй выбор тип парсинга, в зависимости от расширения файла
 				{
 					//ReWrite("Выберите тип парсинга: \n");
+					WriteParsingWindow(null);
+
 #if DEBUG
-					Parsing(ParsingType.docx);
+					//Parsing(ParsingType.docx);
 #else
 					Parsing((ParsingType)Menu( ((ParsingType[])Enum.GetValues(typeof(ParsingType))).ToArray(
 								Type => new Option(GetTypeName(Type), Type.ToString())
@@ -86,42 +85,27 @@ namespace Application
 		{
 			ParsingType.docx => "ТЗ (.docx)",
 			ParsingType.xsl => ".xsl",
-		//	ParsingType.xml => ".xml (не рекомендуется)",
 			_ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
 		};
 
-		private static void Parsing(ParsingType? parsingType)
+		//private static void WriteParsingWindow() => WriteParsingWindow(null);
+
+		private static void WriteParsingWindow()
 		{
 			ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
-			Table.Block FileDictionary = GetDictionary(DictionaryPath); //: Чтение словаря
+			Table.Block FileDictionary = GetDictionary(Dic.DictionaryPath); //: Чтение словаря
 
 			if (FileDictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
 			else ReWrite($"Словарь с {FileDictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
 			Dictionary.Append(FileDictionary);
-
-			//TableMode = quSwitch(true, c.cyan, c.yellow, c.silver, "Таблица", "Словарь");
-			TreeNode<Data> tree = null;
-			var supportedExtensions = new[] { "docx" };
-			string filePath = GetFilepath(supportedExtensions, () => ReWrite($"\nСкопируйте файл ({supportedExtensions.ToReadableString(Separator: ", .", " или .")}) сюда: ", ClearLine: true));
-		}
-
-	private static void Parsing(ParsingType parsingType)
-		{
 			
-			ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
-			Table.Block FileDictionary = GetDictionary(DictionaryPath); //: Чтение словаря
-
-			if (FileDictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
-			else ReWrite($"Словарь с {FileDictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
-			Dictionary.Append(FileDictionary);
-
-			//TableMode = quSwitch(true, c.cyan, c.yellow, c.silver, "Таблица", "Словарь");
 			TreeNode<Data> tree = null;
-			string filePath = null;
+			var supportedExtensions = new[] { "docx", "xsl" };
+			var fileInfo = new FileInfo(GetFilepath(supportedExtensions, () => ReWrite($"\nСкопируйте файл ({supportedExtensions.ToReadableString(Separator: ", .", " или .")}) сюда: ", ClearLine: true)));
 
-			switch (parsingType)
+			switch (fileInfo.Extension)
 			{
-				case ParsingType.docx:
+				case "docx":
 				{
 					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
 
@@ -131,16 +115,16 @@ namespace Application
 #else
 						GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
 #endif
-					filePath = docxFilePath.Slice(0, ".");
-					tree = CreateTree(GetDocxTable(docxFilePath));
+					fileInfo = docxFilePath.Slice(0, ".");
+					tree = CreateTree(DocxTableMethods.OpenFile(docxFilePath));
 
 				} break;
-				case ParsingType.xsl:
+				case "xsl":
 				{
 					throw new NotImplementedException("xsl парсинг ещё не реализован");
 				} break;
 				default:
-					throw new ArgumentOutOfRangeException(nameof(parsingType), parsingType, null);
+					throw new ArgumentOutOfRangeException(nameof(supportedExtensions), parsingType, null);
 			}
 
 			
@@ -151,12 +135,12 @@ namespace Application
 
 			void saveFile(string Text)
 			{
-				var fileName = filePath.Slice("\\",int.MaxValue, LastStart:true, LastEnd: true) + ".js";
+				var fileName = fileInfo.Slice("\\",int.MaxValue, LastStart:true, LastEnd: true) + ".js";
 				ReWrite("\nВведите название файла: ");
 				fileName = ReadT(InputString: fileName).String();
-				filePath = filePath.Slice(0,"\\",false,true,true) + fileName;
+				fileInfo = fileInfo.Slice(0,"\\",false,true,true) + fileName;
 
-				if (File.Exists(filePath))
+				if (File.Exists(fileInfo))
 				{
 					ReWrite(new[] { $"\nФайл  уже существует. ", "Перезаписать? " }, new[] { c.Default, c.red });
 					if (!quSwitch(null, false))
@@ -167,77 +151,9 @@ namespace Application
 				}
 
 				ReWrite("\nИдёт запись файла...", c.purple);
-				File.WriteAllText(filePath, Text);
-				ReWrite(new[] { "\nФайл записан", " по пути ", filePath }, new[] { c.lime, c.Default, c.blue });
+				File.WriteAllText(fileInfo, Text);
+				ReWrite(new[] { "\nФайл записан", " по пути ", fileInfo }, new[] { c.lime, c.Default, c.blue });
 			}
-		}
-
-		public static string AskCode(this Table.Block Dictionary, string ruName)
-		{
-			ReWrite(new[] { $"\nНе найдено имя переменной для ",ruName,". Напишите его: " }, new[] { c.red,c.cyan, c.white });
-			
-			var Code = ReadT(Placeholder: "! (удалить блок)").String();
-			var curPos = GetCurPos();
-			if (Code.StartsWith("!")) Code = null;
-			bool optional = true;
-			bool repeat = false;
-			if (Code != null)
-			{
-				optional = !quSwitch("\nПоле обязательно? ");
-				Dictionary.Add(Code, ruName, optional);
-			}
-
-			do
-			{
-				try
-				{
-					File.AppendAllText(DictionaryPath,  
-						Code==null?
-							$"\n!={ruName}" :
-							$"\n{Code}={ruName}={(optional? "1" : "0")}");
-				}
-				catch (Exception e)
-				{
-					ReWrite(new[] { "\nНе удалось сохранить словарь: ", e.Message + ". ", "Повторить попытку?" }, new[] { c.red, c.gray, c.Default });
-					repeat = quSwitch();
-				}
-			} while (repeat);
-
-			return Code;
-		}
-
-		public static string AskName(this Table.Block Dictionary, string Code)
-		{
-			ReWrite(new[] { $"\nНе найдено определение для ",Code,". Напишите его: " }, new[] { c.red,c.cyan, c.white });
-			
-			var ruName = ReadT(Placeholder: "! (Разбить группу)").String();
-			var curPos = GetCurPos();
-			if (ruName.StartsWith("!")) ruName = null;
-			bool optional = true;
-			bool repeat = false;
-			if (ruName != null)
-			{
-				optional = !quSwitch("\nПоле обязательно? ");
-				Dictionary.Add(Code, ruName, optional);
-			}
-
-			do
-			{
-				try
-				{
-					File.AppendAllText(DictionaryPath,  
-						ruName==null?
-							$"\n{Code}=!" :
-							$"\n{Code}={ruName}={(optional? "1" : "0")}");
-				}
-				catch (Exception e)
-				{
-					ReWrite(new[] { "\nНе удалось сохранить словарь: ", e.Message + ". ", "Повторить попытку?" }, new[] { c.red, c.gray, c.Default });
-					repeat = quSwitch();
-				}
-			} while (repeat);
-
-			return ruName;
 		}
 	}
 }

@@ -158,10 +158,13 @@ namespace xml_js_Parser.Classes
 
 			public class TableRow
 			{
-				public string Text;
-				public string Code;
-				public bool Optional;
+				private Methods.Data _data;
+				public string? Text { get => _data.Text; set => _data.Text = value; }
+				public string? Code {get => _data.Code; set => _data.Code = value;}
+				public bool? Optional {get => _data.Optional; set => _data.Optional = value;}
 				public Block Source;
+
+				public Methods.Data GetData() => _data;
 
 				internal TableRow(string code, string text, Block Source, bool optional = true)
 				{

@@ -1,17 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using static Titanium.Consol;
-using System.Xml.Linq;
-using Application;
-using DocumentFormat.OpenXml.Wordprocessing;
-using DocumentFormat.OpenXml.Packaging;
 using Titanium;
+using static Titanium.Consol;
 using static xml_js_Parser.Classes.Table;
 
 using DocTable =  DocumentFormat.OpenXml.Wordprocessing.Table;
@@ -22,192 +15,33 @@ namespace xml_js_Parser.Classes
 {
 	public static class Methods
 	{
-		public static bool DeleteGroups(this TreeNode<Data> Tree, bool IsRootNode = true)
-		{
-			var childCount = Tree.Childs.Count;
-			for (var i = 0; i < childCount;)
-			{
-				var child = Tree.Childs[i];
-				if (!child.DeleteGroups(false)) i++;
-				else childCount--;
-			}
-
-			if (!IsRootNode && Tree.Value?.IsGroup != false)
-			{
-				Tree.Delete();
-				return true;
-			}
-
-			return false;
-		
-		}
-
 		public static string Name(string name) => @"{http://idecs.atc.ru/pgufg/ws/fgapc/}" + name;
-
-		public class XMLData
-		{
-			public string Type;
-			public string? NameType;
-			public string? ValueType;
-			public bool Recursive;
-			public bool AskIfNotFound;
-
-			public XMLData(string Type, string? NameType = null, string? ValueType = null, bool Recursive = false, bool askIfNotFound = false)
-			{
-				this.Type = Type;
-				this.AskIfNotFound = askIfNotFound;
-				this.NameType = NameType;
-				this.ValueType = ValueType;
-				this.Recursive = Recursive;
-			}
-		}
-
-		internal class XmlFile
-		{
-			public XDocument Doc;
-			public FileInfo Info;
-
-			private XmlFile(XDocument Doc, FileInfo Info)
-			{
-				this.Doc = Doc;
-				this.Info = Info;
-			}
-
-			public static XmlFile Get()
-			{
-				var cursorPosition = GetCurPos();
-				var filepath = GetFilepath("xml", 
-					() => ReWrite(new[] { "\nНапишите путь ", ".XML", " файла для парсинга (или ", "перетащите", " его) и нажмите", " Enter: " }, new[] { c.Default, c.lime, c.Default, c.lime, c.Default, c.yellow }));
-				try //:										Парсинг
-				{
-					ReWrite("\nИдёт парсинг xml... ", c.purple);
-					XDocument xml = XDocument.Load(filepath);
-					ReWrite("\nПарсинг успешно завершён", c.green);
-					return new XmlFile(xml, new FileInfo(filepath));
-				}
-				catch (Exception e)
-				{
-					ReWrite($"\nОшибка: {e.Message}", c.red, ClearLine: true);
-					ReWrite(" (повторите попытку)", c.Default);
-					SetCurPos(cursorPosition);
-					return Get();
-				}
-			
-			}
-
-			public static XmlFile Get(string filepath)
-			{
-				var cursorPosition = GetCurPos();
-				try //:										Парсинг
-				{
-					ReWrite("\nИдёт парсинг xml... ", c.purple);
-					XDocument xml = XDocument.Load(filepath);
-					ReWrite("\nПарсинг успешно завершён", c.green);
-					return new XmlFile(xml, new FileInfo(filepath));
-				}
-				catch (Exception e)
-				{
-					ReWrite($"\nОшибка: {e.Message}", c.red, ClearLine: true);
-					ReWrite(" (повторите попытку)", c.Default);
-					SetCurPos(cursorPosition);
-					return null;
-				}
-			
-			}
-		}
-
+		
+		//TODO: Практически то же самое, что TableRow. Надо их объединить
 		public class Data //TODO: придумать нормальное имя
-		{ //\ Нужно бы избавиться от зависимостей и заменить его на TableRow при методе DocxParse
+		{ // Нужно бы избавиться от зависимостей и заменить его на TableRow при методе DocxParse
 			public string? Code;
 			public string? Text;
 			public bool? Optional;
-			public string? Value; //\ НЕ ИСПОЛЬЗУЕТСЯ
-			public bool IsGroup;
 
-			public XElement xml; //\ Не используется при Docx parse
-
-			public Data(XElement Xml, string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
+			public Data(string? code = null, string text = null, bool? optional = null)
 			{
-				this.Code = code;
-				this.Value = Value;
-				xml = Xml;
+				Code = code;
 				Text = text;
 				Optional = optional;
-				IsGroup = isGroup;
-			}
-
-			public Data(string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
-			{
-				this.Code = code;
-				this.Value = Value;
-				Text = text;
-				Optional = optional;
-				IsGroup = isGroup;
 			}
 		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="filepath"></param>
-		/// <returns></returns>
-		/// <exception cref="ArgumentException"></exception>
-		public static List<string[]> GetFileDocx(string filepath)
+		
+		public static int[] GetMainColumnsIndexes(this DocTableRow tr)
 		{
-			ReWrite("\nИдёт чтение .doc файла... ", c.purple);
-			List<string[]> Data = new();
-			using WordprocessingDocument doc =
-				WordprocessingDocument.Open(filepath, false);
-			var tables = doc.MainDocumentPart.Document.Body.Elements<DocTable>();
-			ReWrite("Файл открыт", c.green); ReWrite("\nИдёт поиск нужной таблицы... ",c.purple);
-			DocTable specTable = null;
-			int[] Ns = null;
-			int NsMax = 0;
-			foreach (DocTable table in tables)
-			{
-				var Header = table.Elements<TableRow>().ElementAt(0);
-				Ns = Header.GetMainColumnsIndexes();
-				if (Ns == null) continue;
-				specTable = table;
-				break;
-			}
-			if(specTable==null) throw new ArgumentException("Подходящей таблицы не найдено в .docx файле");
-			ReWrite("Нужная таблица найдена",c.green);
-
-			NsMax = Ns.Max();
-
-			foreach (var row in specTable.Elements<TableRow>().ToArray()[1..])
-			{
-				var cells = row.Elements<TableCell>().ToArray();
-				if (cells.Length >=NsMax)
-					Data.Add(new []{cells[Ns[0]].InnerText, cells[Ns[1]].InnerText, cells[Ns[2]].InnerText });
-			}
-
-			return Data;
-		}
-
-		// internal class FormTableRow
-		// {
-		// 	public string RuName;
-		// 	public string XmlName;
-		// 	public string FieldType; //TODO: typechange
-		// 	public string Restrictions; //TODO: typechange
-		// 	public string FillingType; //TODO: typechange
-		// 	public string DefaultValue;
-		// 	public bool 
-		//
-		// }
-
-		public static int[] GetMainColumnsIndexes(this TableRow tr)
-		{
-			var tcs = tr.Elements<TableCell>().ToList();
+			var tcs = tr.Elements<DocTableCell>().ToList();
 			var res = new int[4].FillAndGet(-1);
 			for (int i = 0; i < tcs.Count; i++)
 			{
-				if (tcs[i].InnerText.Contains(Table.CodeColumnName, StringComparison.OrdinalIgnoreCase)) res[0] = i;
-				else if (tcs[i].InnerText.Contains(Table.TextColumnName, StringComparison.OrdinalIgnoreCase)) res[1] = i;
-				else if (tcs[i].InnerText.Contains(Table.IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) res[2] = i;
-				else if (tcs[i].InnerText.Contains(Table.FormatControl, StringComparison.OrdinalIgnoreCase)) res[3] = i;
+				if (tcs[i].InnerText.Contains(CodeColumnName, StringComparison.OrdinalIgnoreCase)) res[0] = i;
+				else if (tcs[i].InnerText.Contains(TextColumnName, StringComparison.OrdinalIgnoreCase)) res[1] = i;
+				else if (tcs[i].InnerText.Contains(IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) res[2] = i;
+				else if (tcs[i].InnerText.Contains(FormatControl, StringComparison.OrdinalIgnoreCase)) res[3] = i;
 			}
 
 			if (res.All(x => x != -1)) return res;
@@ -266,13 +100,13 @@ namespace xml_js_Parser.Classes
 							if (cells[0].ToLower().ContainsAny("блок", "шаг")) //:Добавление блока (названия)
 							{
 								string name = cells[0].Slice(new Regex(@"[Б|б]лок *\d+\.? *|[Ш|ш]аг *\d+\.? *"), ".", LastEnd: false);
-								if (Program.SkipList.Contains((name, false)))
+								if (Dic.SkipList.Contains((name, false)))
 									skip = true;
 								else
 								{
 									skip = false;
-									var el = GetCodeFromDictionary(name);
-									root.Add(new Data(code, name));
+									var el = Dic.GetByName(name);
+									root.Add(el.GetData());
 								}
 							}
 							else
@@ -300,32 +134,11 @@ namespace xml_js_Parser.Classes
 			return new Data(
 				code,
 				text,
-				OptionalityText.Contains("-") || FormatControlText.ContainsAny(new[] { "Поле отображается", "Поле видно" })
+				OptionalityText.Contains("-") || FormatControlText.ContainsAny("Поле отображается", "Поле видно")
 			);
 		}
-
-		// public static string GetFileText(string filepath, string FileTypeName = "")
-		// {
-		// 	string filedata;
-		// 	if (!File.Exists(filepath))
-		// 	{
-		// 		ReWrite(new []{$"\nОшибка: файл {FileTypeName} не найден", "по пути", Environment.CurrentDirectory.Add("\\")+ filepath}, new [] { c.red ,c.Default, c.blue});
-		// 		return null;
-		// 	}
-		// 	try
-		// 	{
-		// 		filedata = File.ReadAllText(filepath);
-		// 	}
-		// 	catch (Exception e)
-		// 	{
-		// 		ReWrite(new []{$"\nОшибка при чтении {FileTypeName?? "файла"}: ",e.Message}, new []{c.red, c.Default});
-		// 		return null;
-		// 	}
-		//
-		// 	return filedata;
-		// }
-
-		public static Table.Block GetDictionary(string filepath) //BUG: не добавляется IpId
+		
+		public static Block GetDictionary(string filepath) //BUG: не добавляется IpId
 		{
 			string filedata;
 			if (!File.Exists(filepath))
@@ -345,7 +158,7 @@ namespace xml_js_Parser.Classes
 
 			bool dataChanged = false;
 			List<string> lines = filedata.RemoveAll("\r").Split("\n").ToList();
-			var result = new Table.Block();
+			var result = new Block();
 			//var resultWithRegex = new Dictionary<Regex, string>();
 			for (var i = 0; i < lines.Count; i++)
 			{
@@ -359,7 +172,7 @@ namespace xml_js_Parser.Classes
 						var skipWords = pair[1].Split(',');
 						foreach (var word in skipWords) //: Можно сделать экранирование путём проверки на "\" в конце word
 						{
-							Program.SkipList.Add(word);
+							Dic.SkipList.Add((word,false));
 						}
 					} else
 					if(!lines[i].IsNullOrEmpty()) 

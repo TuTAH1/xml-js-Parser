@@ -13,18 +13,18 @@ namespace xml_js_Parser.Classes
 {
 	internal static class Dic
 	{
-		public static Table.Block Data = new Table.Block();
-		public static string GetCodeFromDictionary(string name) //BUG: !=Text not working
-		{
-			var dic = Data;
-			if (dic == null || name == null) return null;
+		public const string DictionaryPath = @"Файлы программы\Словарь.txt";
+		public const string ignore = "!ignore";
+		public const string skip = "!skip";
+		public static List<(string, bool isCode)> SkipList = new();
+		public static Table.Block Data = new();
 
-			var dicStr = dic.rows.FirstOrDefault(row => row.Text == name)?? new Block.TableRow(null,name,null); //: Найти совпадение по имени, иначе создать TableRow
-			dicStr.Code ??= Data.AskCode(name);
-			return dicStr.Code;
-		}
+		public static string GetCode(string Name, bool AskIfNotFound = true) => 
+			((from r in Data.rows where r.Text == Name select r).FirstOrDefault()?? (AskIfNotFound? AskCode(Name) : null)).Code;
+		public static Block.TableRow GetByName(string Name, bool AskIfNotFound = true) => 
+			(from r in Data.rows where r.Text == Name select r).FirstOrDefault()?? AskCode(Name);
 
-		public static string AskCode(this Table.Block Dictionary, string ruName)
+		public static Block.TableRow AskCode(string ruName)
 		{
 			ReWrite(new[] { $"\nНе найдено имя переменной для ",ruName,". Напишите его: " }, new[] { Consol.c.red,Consol.c.cyan, Consol.c.white });
 			
@@ -33,10 +33,17 @@ namespace xml_js_Parser.Classes
 			if (Code.StartsWith("!")) Code = null;
 			bool optional = true;
 			bool repeat = false;
-			if (Code != null)
+			Block.TableRow resData = null;
+
+			if (Code == null)
+			{
+				SkipList.Add(new(ruName, false));
+			}
+			else
 			{
 				optional = !quSwitch("\nПоле обязательно? ");
-				Dictionary.Add(Code, ruName, optional);
+				Data.Add(Code, ruName, optional);
+				resData = Data.rows.Last();
 			}
 
 			do
@@ -55,7 +62,7 @@ namespace xml_js_Parser.Classes
 				}
 			} while (repeat);
 
-			return Code;
+			return resData;
 		}
 
 		public static string AskName(this Table.Block Dictionary, string Code)
