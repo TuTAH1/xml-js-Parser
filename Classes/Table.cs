@@ -166,20 +166,17 @@ namespace xml_js_Parser.Classes
 
 				public Methods.Data GetData() => _data;
 
+				public TableRow() => _data = new Methods.Data();
 				internal TableRow(string code, string text, Block Source, bool optional = true)
 				{
-					Text = text;
-					Code = code;
+					_data = new Methods.Data(code,text,optional);
 					this.Source = Source;
-					Optional = optional;
 				}
 
 				public TableRow(string code, string text, bool optional = true)
 				{
-					Text = text;
-					Code = code;
+					_data = new Methods.Data(code,text,optional);
 					Source = null;
-					Optional = optional;
 				}
 
 				/// <summary>

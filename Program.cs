@@ -47,17 +47,17 @@ namespace Application
 		static void Main(string[] args)
 		{
 			SetConsolePallete(DarkBlue: Color.FromArgb(9, 29, 69), DarkCyan: Color.FromArgb(9, 61, 69), Silver: Color.FromArgb(20, 20, 20));
-			Process.Start("Updater.exe");
+			Process.Start("Updater.exe"); //: Check updates
 
 			while (true)
 			{
 				RClr();
 				Clear();
 				ReWrite(new[] { "xml-js Parser ", $"v{Version} ", "by ", "Тит", "ов Ив", "ан" }, new[] { c.lime, c.cyan, c.Default, c.lime, c.green, c.lime });
-				try //TODO: автоматическй выбор тип парсинга, в зависимости от расширения файла
+				try
 				{
 					//ReWrite("Выберите тип парсинга: \n");
-					WriteParsingWindow(null);
+					WriteParsingWindow();
 
 #if DEBUG
 					//Parsing(ParsingType.docx);
@@ -101,33 +101,30 @@ namespace Application
 			
 			TreeNode<Data> tree = null;
 			var supportedExtensions = new[] { "docx", "xsl" };
-			var fileInfo = new FileInfo(GetFilepath(supportedExtensions, () => ReWrite($"\nСкопируйте файл ({supportedExtensions.ToReadableString(Separator: ", .", " или .")}) сюда: ", ClearLine: true)));
+			var fileInfo = new FileInfo(
+#if DEBUG
+				@"C:\Users\iati\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx"				
+#else
+				GetFilepath(supportedExtensions, () => ReWrite($"\nСкопируйте файл (.{supportedExtensions.ToReadableString(Separator: ", .", " или .")}) сюда: ", ClearLine: true))
+#endif
+				);
 
 			switch (fileInfo.Extension)
 			{
-				case "docx":
+				case ".docx":
 				{
 					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
-
-					var docxFilePath =
-#if DEBUG
-						@"C:\Users\iati\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx";				
-#else
-						GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
-#endif
-					fileInfo = docxFilePath.Slice(0, ".");
-					tree = CreateTree(DocxTableMethods.OpenFile(docxFilePath));
+					//fileInfo = docxFilePath.Slice(0, ".");
+					tree = CreateTree(DocxTableMethods.OpenFile(fileInfo.FullName));
 
 				} break;
-				case "xsl":
+				case ".xsl":
 				{
 					throw new NotImplementedException("xsl парсинг ещё не реализован");
 				} break;
 				default:
-					throw new ArgumentOutOfRangeException(nameof(supportedExtensions), parsingType, null);
+					throw new ArgumentOutOfRangeException(nameof(supportedExtensions), fileInfo.Extension, null);
 			}
-
-			
 
 			var js = CodeGenerator.GenerateJsCode(tree);
 			saveFile(js);
@@ -135,12 +132,12 @@ namespace Application
 
 			void saveFile(string Text)
 			{
-				var fileName = fileInfo.Slice("\\",int.MaxValue, LastStart:true, LastEnd: true) + ".js";
+				var fileName = fileInfo.Name;
 				ReWrite("\nВведите название файла: ");
 				fileName = ReadT(InputString: fileName).String();
-				fileInfo = fileInfo.Slice(0,"\\",false,true,true) + fileName;
+				fileInfo = new FileInfo(Path.Combine(fileInfo.DirectoryName, fileName));
 
-				if (File.Exists(fileInfo))
+				if (fileInfo.Exists)
 				{
 					ReWrite(new[] { $"\nФайл  уже существует. ", "Перезаписать? " }, new[] { c.Default, c.red });
 					if (!quSwitch(null, false))
@@ -151,8 +148,8 @@ namespace Application
 				}
 
 				ReWrite("\nИдёт запись файла...", c.purple);
-				File.WriteAllText(fileInfo, Text);
-				ReWrite(new[] { "\nФайл записан", " по пути ", fileInfo }, new[] { c.lime, c.Default, c.blue });
+				File.WriteAllText(fileInfo.FullName, Text);
+				ReWrite(new[] {"\nФайл записан", " по пути ", fileInfo.FullName }, new[] { c.lime, c.Default, c.blue });
 			}
 		}
 	}

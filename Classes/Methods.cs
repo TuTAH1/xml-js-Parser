@@ -137,63 +137,8 @@ namespace xml_js_Parser.Classes
 				OptionalityText.Contains("-") || FormatControlText.ContainsAny("Поле отображается", "Поле видно")
 			);
 		}
+
 		
-		public static Block GetDictionary(string filepath) //BUG: не добавляется IpId
-		{
-			string filedata;
-			if (!File.Exists(filepath))
-			{
-				ReWrite(new []{"\nОшибка: файл словаря не найден", "по пути", Environment.CurrentDirectory.Add("\\")+ filepath}, new [] { c.red ,c.Default, c.blue});
-				return null;
-			}
-			try
-			{
-				filedata = File.ReadAllText(filepath);
-			}
-			catch (Exception e)
-			{
-				ReWrite(new []{"\nОшибка при чтении словаря: ",e.Message}, new []{c.red, c.Default});
-				return null;
-			}
-
-			bool dataChanged = false;
-			List<string> lines = filedata.RemoveAll("\r").Split("\n").ToList();
-			var result = new Block();
-			//var resultWithRegex = new Dictionary<Regex, string>();
-			for (var i = 0; i < lines.Count; i++)
-			{
-				if (lines[i].StartsWith("//")) continue; //: комментарий
-
-				string[] pair = lines[i].Split("=", StringSplitOptions.RemoveEmptyEntries);
-				if (pair.Length < 3)
-				{
-					if (pair.Length==2&&pair[0] == "!")
-					{
-						var skipWords = pair[1].Split(',');
-						foreach (var word in skipWords) //: Можно сделать экранирование путём проверки на "\" в конце word
-						{
-							Dic.SkipList.Add((word,false));
-						}
-					} else
-					if(!lines[i].IsNullOrEmpty()) 
-						ReWrite(new []{"\nОшибка",$" чтения строки словаря {i}: ",lines[i]}, new []{c.red,c.gray,c.silver});
-					continue;
-				}
-			
-				if (pair.Length != 3) ReWrite($"\nОшибка при чтении словаря в {i + 1}-й строке ({lines[i]}): должно быть 3 слова, а обнаружено {pair.Length}.");
-				else if (result.GetByCode(pair[0])!=null) {lines.RemoveAt(i); dataChanged = true;}
-				else result.Add(pair[0],pair[1],pair[2]=="1");
-			}
-
-			if (!dataChanged) return result;
-		
-			try
-			{ File.OpenWrite(filepath); }
-			catch (Exception e)
-			{ ReWrite("Не удалось удалить дубликаты из Словаря", c.red);}
-
-			return result;
-		}
 
 		/*internal static Regex GetRegex(string S, out int Freedom)
 		{

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Titanium;
 using static xml_js_Parser.Classes.Table;
@@ -18,6 +19,62 @@ namespace xml_js_Parser.Classes
 		public const string skip = "!skip";
 		public static List<(string, bool isCode)> SkipList = new();
 		public static Table.Block Data = new();
+
+		public static Block ReadFile(string filepath) //BUG: не добавляется IpId
+		{
+			string filedata;
+			if (!File.Exists(filepath))
+			{
+				ReWrite(new []{"\nОшибка: файл словаря не найден", "по пути", Environment.CurrentDirectory.Add("\\")+ filepath}, new [] { c.red ,c.Default, c.blue});
+				return null;
+			}
+			try
+			{
+				filedata = File.ReadAllText(filepath);
+			}
+			catch (Exception e)
+			{
+				ReWrite(new []{"\nОшибка при чтении словаря: ",e.Message}, new []{c.red, c.Default});
+				return null;
+			}
+
+			bool dataChanged = false;
+			List<string> lines = filedata.RemoveAll("\r").Split("\n").ToList();
+			//var resultWithRegex = new Dictionary<Regex, string>();
+			for (var i = 0; i < lines.Count; i++)
+			{
+				if (lines[i].StartsWith("//")) continue; //: комментарий
+
+				string[] pair = lines[i].Split();
+				if (pair.Length < 3)
+				{
+					if (pair.Length==2&&pair[0] == "!")
+					{
+						var skipWords = pair[1].Split(',');
+						foreach (var word in skipWords) //: Можно сделать экранирование путём проверки на "\" в конце word
+						{
+							SkipList.Add((word,false));
+						}
+					} 
+					else if(!lines[i].IsNullOrEmpty()) 
+						ReWrite(new []{"\nОшибка",$" чтения строки словаря {i}: ",lines[i]}, new []{c.red,c.gray,c.silver});
+					continue;
+				}
+			
+				if (pair.Length != 3) ReWrite($"\nОшибка при чтении словаря в {i + 1}-й строке ({lines[i]}): должно быть 3 слова, а обнаружено {pair.Length}.");
+				else if (Data.GetByCode(pair[0])!=null) {lines.RemoveAt(i); dataChanged = true;}
+				else Data.Add(pair[0],pair[1],pair[2]=="1");
+			}
+
+			if (!dataChanged) return Data;
+		
+			try
+			{ File.OpenWrite(filepath); }
+			catch (Exception e)
+			{ ReWrite(new []{"Не удалось удалить дубликаты из Словаря: ", e.Message}, new[] {c.red, c.gray});}
+
+			return Data;
+		}
 
 		public static string GetCode(string Name, bool AskIfNotFound = true) => 
 			((from r in Data.rows where r.Text == Name select r).FirstOrDefault()?? (AskIfNotFound? AskCode(Name) : null)).Code;
