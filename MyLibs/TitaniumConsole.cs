@@ -1628,7 +1628,7 @@ namespace Titanium {
 		/// <param name="ShiftRight">Изменение позиции курсора от текущего положения</param>
 		/// <param name="ClearLine">Очистить ли строку, на которую будет выведен текст</param>
 		/// <param name="CurPosH">Позиция текста по горизонтали (по умолчанию – не изменять)</param>
-		/// <param name="CurPosV>Позиция текста по вертикали (по умолчанию – не изменять)</param>
+		/// <param name="CurPosV">Позиция текста по вертикали (по умолчанию – не изменять)</param>
 		/// <param name="TextColor">Цвет текста String</param>
 		/// <param name="BackgroundColor">Цвет фона String</param>
 		/// <param name="ClearLineColor">Цвет фона пустой строки</param>
