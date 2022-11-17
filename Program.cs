@@ -93,7 +93,7 @@ namespace Application
 		private static void WriteParsingWindow()
 		{
 			ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
-			Table.Block FileDictionary = GetDictionary(Dic.DictionaryPath); //: Чтение словаря
+			Table.Block FileDictionary = Dic.ReadFile(); //: Чтение словаря
 
 			if (FileDictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
 			else ReWrite($"Словарь с {FileDictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);

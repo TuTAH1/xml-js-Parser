@@ -815,8 +815,46 @@ namespace Titanium {
 			}
 		}
 
+		public class Condition
+		{
+			public Func<char, bool> Func;
+			public bool inclusive; //: Is the rule says the condition SHOULD be (false if it asys the condition souldn't be)
+
+			public Condition(Func<char, bool> Func, bool Inclusive = true)
+			{
+				this.Func = Func;
+				inclusive = Inclusive;
+			}
+
+			public static implicit operator Func<char, bool>(Condition condition) => condition.Func;
+		}
+
+		public class Conditions
+		{
+			private Condition[] data;
+			public int WordLength { get; }
+			public int Count => data?.Length?? 0;
+
+			public Condition this[int index] => data[index];
+			
+			public Conditions(Condition[] Data)
+			{
+				data = Data;
+				WordLength = data.Count(x => x.inclusive);
+			}
+
+			public static implicit operator Conditions(Condition[] o)
+			{
+				return new Conditions(o);
+			}
+
+			public bool Any() => Count > 0;
+		}
+
 		public static (int Index, int Length)? FindMatch<T>(this string s, T Target, bool LastMatch = false)
 		{
+			if (s.IsNullOrEmpty()) return null;
+
 			switch (Target)
 			{
 				case null:
@@ -834,9 +872,9 @@ namespace Titanium {
 					var match = LastMatch? indexRegex.Matches(s).LastOrDefault() : indexRegex.Match(s);
 					return match is { Index: >= 0 }? 
 						(match.Index, match.Length): null;
-				case Func<char,bool>[] indexConditions:
+				case Conditions indexConditions:
 					return (indexConditions?.Any() == true)?  
-						(s.IndexOfConditions(indexConditions,RightDirection:!LastMatch),indexConditions.Length) : null;
+						(s.IndexOfConditions(indexConditions,RightDirection:!LastMatch),Length: indexConditions.WordLength) : null;
 				default:
 					throw new TypeInitializationException(typeof(T).FullName, new ArgumentException($"Type of {nameof(Target)} is not supported by FindMatch"));
 			}
@@ -880,7 +918,7 @@ namespace Titanium {
 				return i == -1 ? -1 : i + s2.Length;
 			}
 
-			private static int IndexOfConditions(this string s, Func<char,bool>[] Conditions, int Start = 0, int End = Int32.MaxValue, bool RightDirection = true, bool IndexOfEnd = false) //:22.09.22 Bugfix, deleted useless LastOccurance; Replaced DirectionEnum with bool RightDirection
+			private static int IndexOfConditions(this string s, Conditions Conditions, int Start = 0, int End = Int32.MaxValue, bool RightDirection = true, bool IndexOfEnd = false) //:22.09.22 Bugfix, deleted useless LastOccurance; Replaced DirectionEnum with bool RightDirection
 			{
 				if (End == Int32.MaxValue) End = s.Length-1;
 				if (Start < 0) Start = s.Length + Start;
@@ -894,7 +932,7 @@ namespace Titanium {
 				   !RightDirection && End > Start)
 					Swap(ref Start, ref End);
 				
-				int defaultCurMatchPos = RightDirection? 0 : Conditions.Length-1;
+				int defaultCurMatchPos = RightDirection? 0 : Conditions.Count-1;
 				int curCondition = defaultCurMatchPos;
 				int Result = -1;
 

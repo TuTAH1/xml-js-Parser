@@ -20,9 +20,15 @@ namespace xml_js_Parser.Classes
 		public static List<(string, bool isCode)> SkipList = new();
 		public static Table.Block Data = new();
 
-		public static Block ReadFile(string filepath) //BUG: не добавляется IpId
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="filepath">Default value: DictionaryPath</param>
+		/// <returns></returns>
+		public static Block ReadFile(string filepath = null) //BUG: не добавляется IpId
 		{
 			string filedata;
+			filepath??= DictionaryPath;
 			if (!File.Exists(filepath))
 			{
 				ReWrite(new []{"\nОшибка: файл словаря не найден", "по пути", Environment.CurrentDirectory.Add("\\")+ filepath}, new [] { c.red ,c.Default, c.blue});
@@ -44,8 +50,8 @@ namespace xml_js_Parser.Classes
 			for (var i = 0; i < lines.Count; i++)
 			{
 				if (lines[i].StartsWith("//")) continue; //: комментарий
-
-				string[] pair = lines[i].Split();
+				if (lines[i].IsNullOrEmpty()) continue; //: Пустая строка
+				string[] pair = lines[i].Split(new Func<char,bool>[] {(ch) => ch!='\\', ch => ch == '='}).ToArray(); //! New
 				if (pair.Length < 3)
 				{
 					if (pair.Length==2&&pair[0] == "!")
@@ -56,7 +62,7 @@ namespace xml_js_Parser.Classes
 							SkipList.Add((word,false));
 						}
 					} 
-					else if(!lines[i].IsNullOrEmpty()) 
+					else
 						ReWrite(new []{"\nОшибка",$" чтения строки словаря {i}: ",lines[i]}, new []{c.red,c.gray,c.silver});
 					continue;
 				}
