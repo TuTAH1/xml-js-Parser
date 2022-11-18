@@ -149,13 +149,6 @@ namespace xml_js_Parser.Classes
 
 			public void Append(Block t) => AddRange(t.rows);
 
-			public Block.TableRow GetByCode(string code)
-			{
-				if (this == null || code == null) return null;
-
-				return this.rows.FirstOrDefault(row => row.Code == code);
-			}
-
 			public class TableRow
 			{
 				private Methods.Data _data;

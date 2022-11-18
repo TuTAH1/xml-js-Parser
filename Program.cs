@@ -39,8 +39,12 @@ namespace Application
 		//public static List<Regex> SkipList = new();
 		
 		public static Table.Block Dictionary = new Table.Block();
-		public 
-
+		public static Logger _Logger =
+#if DEBUG
+			new Logger(Environment.CurrentDirectory, "Parser_");
+#else
+			null
+#endif
 		public static Version Version => Assembly.GetExecutingAssembly().GetName().Version;
 		public static Version DicVer = new Version(1, 3); //: Dictionary version (версия словаря); Должно использоваться в Updater
 
@@ -129,7 +133,7 @@ namespace Application
 
 			void saveFile(string Text)
 			{
-				var fileName = fileInfo.Name;
+				var fileName = fileInfo.Name.Slice(0,".") + ".js";
 				ReWrite("\nВведите название файла: ");
 				fileName = ReadT(InputString: fileName).String();
 				fileInfo = new FileInfo(Path.Combine(fileInfo.DirectoryName, fileName));

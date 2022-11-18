@@ -51,9 +51,11 @@ namespace xml_js_Parser.Classes
 			{
 				if (lines[i].StartsWith("//")) continue; //: комментарий
 				if (lines[i].IsNullOrEmpty()) continue; //: Пустая строка
+				Program._Logger?.Log($"Info: Dic: Reading line {i}");
 				lines[i] = lines[i].Replace("=", "\0"); //: Заменяю разделитель на null (для более простого разделения)
 				lines[i] = lines[i].Replace("\\\0", "="); //: Unescaping escaped separators 
 				string[] pair = lines[i].Split('\0'); // Разделяю строку на 3.
+				Program._Logger?.Log($"Info: Dic: Lines: {pair.ToReadableString()}");
 				if (pair.Length < 3)
 				{
 					if (pair.Length==2&&pair[0] == "!")
@@ -70,7 +72,7 @@ namespace xml_js_Parser.Classes
 				}
 			
 				if (pair.Length != 3) ReWrite($"\nОшибка при чтении словаря в {i + 1}-й строке ({lines[i]}): должно быть 3 слова, а обнаружено {pair.Length}.");
-				else if (Data.GetByCode(pair[0])!=null) {lines.RemoveAt(i); dataChanged = true;}
+				else if (GetByName(pair[0],false)!=null) {lines.RemoveAt(i); dataChanged = true;}
 				else Data.Add(pair[0],pair[1],pair[2]=="1");
 			}
 
@@ -87,7 +89,7 @@ namespace xml_js_Parser.Classes
 		public static string GetCode(string Name, bool AskIfNotFound = true) => 
 			((from r in Data.rows where r.Text == Name select r).FirstOrDefault()?? (AskIfNotFound? AskCode(Name) : null)).Code;
 		public static Block.TableRow GetByName(string Name, bool AskIfNotFound = true) => 
-			(from r in Data.rows where r.Text == Name select r).FirstOrDefault()?? AskCode(Name);
+			(from r in Data.rows where r.Text == Name select r).FirstOrDefault()??  (AskIfNotFound? AskCode(Name) : null);
 
 		public static Block.TableRow AskCode(string ruName)
 		{

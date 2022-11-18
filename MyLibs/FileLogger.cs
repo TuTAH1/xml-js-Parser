@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using xml_js_Parser.Classes;
 
 namespace Titanium
 {
@@ -16,7 +17,7 @@ namespace Titanium
 		private bool _writeDate;
 		private StreamWriter _sw;
 
-		public Logger(string FilePath, string Filename, bool Overwrite = true, bool WriteDate = true)
+		public Logger(string FilePath, string Filename, bool Overwrite = false, bool WriteDate = true)
 		{
 			_path = FilePath;
 			_filename = Filename;
@@ -28,12 +29,21 @@ namespace Titanium
 				_sw.WriteLine($"Launched\nDate: {DateTime.Now}");
 			}
 			else
-				_sw = new StreamWriter(_fullPath, new FileStreamOptions { Mode = FileMode.CreateNew });
+				_sw = new StreamWriter(_fullPath, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write});
 			
+			_sw.AutoFlush = true;
 				
 			_writeDate = WriteDate;
 		}
 		
 		public void Log(string Message) => _sw.WriteLine(Message);
+
+		/*internal void Log(Table.Block dic)
+		{
+			foreach (var row in dic)
+			{
+				
+			}
+		}*/
 	}
 }

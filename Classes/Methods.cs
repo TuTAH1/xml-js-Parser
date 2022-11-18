@@ -99,7 +99,7 @@ namespace xml_js_Parser.Classes
 						{
 							if (cells[0].ToLower().ContainsAny("блок", "шаг")) //:Добавление блока (названия)
 							{
-								string name = cells[0].Slice(new Regex(@"[Б|б]лок *\d+\.? *|[Ш|ш]аг *\d+\.? *"), ".", LastEnd: false);
+								string name = cells[0].Slice(new Regex(@"[Б|б]лок *\d+\.? *|[Ш|ш]аг *\d+\.? *"), ".", LastEnd: false, AlwaysReturnString:true);
 								if (Dic.SkipList.Contains((name, false)))
 									skip = true;
 								else
@@ -120,7 +120,7 @@ namespace xml_js_Parser.Classes
 					case > 1 when (!skip):
 						if (root.Empty) 
 							throw new InvalidOperationException("Не найдено описание блока"); //: Когда таблица запарсилась раньше строки "Блок #. Название блока. <...>"
-						if (new Regex(@"[а-я|А-Я]*").IsMatchT(cells[codeColumnN])||cells[codeColumnN].IsNullOrWhiteSpace()) continue; //: Когда в поле код пишется что-то вроде "не передаётся"
+						if (new Regex(@"[а-я|А-Я]+").IsMatchT(cells[codeColumnN])||cells[codeColumnN].IsNullOrWhiteSpace()) continue; //: Когда в поле код пишется что-то вроде "не передаётся"
 						root[^1].Add(CreateData(cells[textColumnN], cells[codeColumnN], cells[optionalColumnN], cells[formatControlN])); //: Добавление данных в дерево
 						break;
 				}
