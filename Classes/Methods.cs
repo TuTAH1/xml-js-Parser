@@ -91,7 +91,7 @@ namespace xml_js_Parser.Classes
 					//! Строка с названием блока или шага
 					case 1:
 					{
-						if (!(cells[0].Contains("Блок") || cells[0].Contains("Шаг") || cells[0].IsNullOrEmpty()))
+						if (!(cells[0].IsNullOrEmpty() || cells[0].Contains("Блок") || cells[0].Contains("Шаг")))
 						{
 							ReWrite(new[] { "\nСтрока ", i.ToString(), " была пропущена", ", так как похожа на комментарий" }, new[] { c.gray, c.cyan, c.yellow, c.gray });
 						}

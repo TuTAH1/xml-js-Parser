@@ -22,6 +22,7 @@ namespace Titanium {
 	/// </summary>   
 	public static class TypesFuncs { //!22.09.2022 
 
+		private const string NullValue = null;
 
 		#region Parsing
 
@@ -762,12 +763,15 @@ namespace Titanium {
 
 			bool BasicSlice = Start is int or null && End is int or null;
 
-			int? start = 0;
-			int? end = s.Length-1;
+			int? start = Start is int i? i : null;
+			int? end = End is int ii ? ii : null;
 
 			int GetStart()
 			{
-				start = IndexOfT(s, Start, LastStart, IncludeStart);
+				if (start != null) return (int)start;
+				if(Start is null) return 0;
+
+				start = IndexOfT(s, Start, LastStart, !IncludeStart);
 
 				return start == null || start >= s.Length ? 
 					AlwaysReturnString ? 0 : throw new IndexOutOfRangeException(nameof(start)) :
@@ -776,11 +780,13 @@ namespace Titanium {
 
 			int GetEnd()
 			{
-				end = IndexOfT(s[1..], End, LastEnd, !IncludeEnd); //: starts from 1, so if start and end are the same, it won't be equal
+				if (end != null) return (int)end;
+				if (End is null) return s.Length;
+				end = IndexOfT(s[1..], End, LastEnd, IncludeEnd)+1; //: starts from 1, so if start and end are the same, it won't be equal
 
-				
-				if (BasicSlice && start > end) Swap(ref start, ref end);
-				return end ?? (AlwaysReturnString ? s.Length - 1 : throw new IndexOutOfRangeException(nameof(end)));
+				if (end == 0) end = null;
+				if (end !=null && BasicSlice && start > end) Swap(ref start, ref end);
+				return end ?? (AlwaysReturnString ? s.Length: throw new IndexOutOfRangeException(nameof(end)));
 			}
 
 			try
@@ -907,7 +913,7 @@ namespace Titanium {
 		/// <returns></returns>
 		/// <exception cref=""></exception>
 		public static string Slice<Ts>(this string s, Ts? Start, bool AlwaysReturnString = false, bool LastStart = false, bool IncludeStart = false) =>
-			s.Slice(Start, int.MaxValue, AlwaysReturnString, LastStart, false, IncludeStart, false);
+			s.Slice(Start, NullValue, AlwaysReturnString, LastStart, false, IncludeStart, false);
 		
 			private static int IndexOfEnd(this string s, string s2)
 			{
@@ -939,10 +945,10 @@ namespace Titanium {
 				if (RightDirection)
 					for (int i = Start; i < End; i++)
 					{
-						if (Conditions[curCondition](s[i]))
+						if (Conditions[curCondition].Func(s[i]))
 						{
 							curCondition++;
-							if (curCondition != Conditions.Length) continue;
+							if (curCondition != Conditions.Count) continue;
 							Result = i;
 							curCondition = defaultCurMatchPos;
 							//if(!LastOccuarance)
@@ -957,7 +963,7 @@ namespace Titanium {
 				else
 					for (int i = Start; i >= End; i--)
 					{
-						if (Conditions[curCondition](s[i]))
+						if (Conditions[curCondition].Func(s[i]))
 						{
 							curCondition--;
 							if (curCondition != 0) continue;
@@ -968,13 +974,13 @@ namespace Titanium {
 						}
 						else
 						{
-							i += ((Conditions.Length-1) - curCondition);
+							i += ((Conditions.Count-1) - curCondition);
 							curCondition = defaultCurMatchPos;
 						}
 					}
 
 				return Result = Result == -1 || IndexOfEnd ^ !RightDirection?
-					Result : (Result - Conditions.Length) +1;
+					Result : (Result - Conditions.Count) +1;
 			}
 
 			/// <summary>

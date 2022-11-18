@@ -39,7 +39,7 @@ namespace Application
 		//public static List<Regex> SkipList = new();
 		
 		public static Table.Block Dictionary = new Table.Block();
-
+		public 
 
 		public static Version Version => Assembly.GetExecutingAssembly().GetName().Version;
 		public static Version DicVer = new Version(1, 3); //: Dictionary version (версия словаря); Должно использоваться в Updater
@@ -58,14 +58,6 @@ namespace Application
 				{
 					//ReWrite("Выберите тип парсинга: \n");
 					WriteParsingWindow();
-
-#if DEBUG
-					//Parsing(ParsingType.docx);
-#else
-					Parsing((ParsingType)Menu( ((ParsingType[])Enum.GetValues(typeof(ParsingType))).ToArray(
-								Type => new Option(GetTypeName(Type), Type.ToString())
-								)));
-#endif
 					WaitKey("выбрать другой файл");
 				}
 				catch (Exception e)
@@ -100,10 +92,15 @@ namespace Application
 			Dictionary.Append(FileDictionary);
 			
 			TreeNode<Data> tree = null;
-			var supportedExtensions = new[] { "docx", "xsl" };
+			var supportedExtensions = new[] { "docx"/*, "xsl"*/ };
 			var fileInfo = new FileInfo(
 #if DEBUG
-				@"C:\Users\iati\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx"				
+				Environment.UserName.ToUpper() switch
+			{
+				"TITAN" => @$"T:\мои документы\Документы 2017\Работа\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx"		
+				,"IATI" => @"C:\Users\iati\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx"		
+			}
+				
 #else
 				GetFilepath(supportedExtensions, () => ReWrite($"\nСкопируйте файл (.{supportedExtensions.ToReadableString(Separator: ", .", " или .")}) сюда: ", ClearLine: true))
 #endif

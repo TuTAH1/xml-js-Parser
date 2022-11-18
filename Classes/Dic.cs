@@ -51,13 +51,15 @@ namespace xml_js_Parser.Classes
 			{
 				if (lines[i].StartsWith("//")) continue; //: комментарий
 				if (lines[i].IsNullOrEmpty()) continue; //: Пустая строка
-				string[] pair = lines[i].Split(new Func<char,bool>[] {(ch) => ch!='\\', ch => ch == '='}).ToArray(); //! New
+				lines[i] = lines[i].Replace("=", "\0"); //: Заменяю разделитель на null (для более простого разделения)
+				lines[i] = lines[i].Replace("\\\0", "="); //: Unescaping escaped separators 
+				string[] pair = lines[i].Split('\0'); // Разделяю строку на 3.
 				if (pair.Length < 3)
 				{
 					if (pair.Length==2&&pair[0] == "!")
 					{
 						var skipWords = pair[1].Split(',');
-						foreach (var word in skipWords) //: Можно сделать экранирование путём проверки на "\" в конце word
+						foreach (var word in skipWords)
 						{
 							SkipList.Add((word,false));
 						}
