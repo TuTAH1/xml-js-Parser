@@ -43,7 +43,7 @@ namespace Application
 #if DEBUG
 			new Logger(Environment.CurrentDirectory, "Parser_");
 #else
-			null
+			null;
 #endif
 		public static Version Version => Assembly.GetExecutingAssembly().GetName().Version;
 		public static Version DicVer = new Version(1, 3); //: Dictionary version (версия словаря); Должно использоваться в Updater
