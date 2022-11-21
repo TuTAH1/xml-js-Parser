@@ -10,7 +10,6 @@ using DocTable =  DocumentFormat.OpenXml.Wordprocessing.Table;
 using DocTableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
 using DocTableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 using DocumentFormat.OpenXml.Spreadsheet;
-using Application;
 
 namespace xml_js_Parser.Classes
 {
@@ -172,40 +171,27 @@ namespace xml_js_Parser.Classes
 
 			public void Append(Block t) => AddRange(t.rows);
 
-			public Block.TableRow GetByCode(string code)
-			{
-				if (this == null || code == null) return null;
-
-				return this.rows.FirstOrDefault(row => row.Code == code);
-			}
-
-			public Block.TableRow GetByName(string name)
-			{
-				if (this == null || name == null) return null;
-
-				return this.rows.FirstOrDefault(row => row.Text == name);
-			}
 			public class TableRow
 			{
-				public string Text;
-				public string Code;
-				public bool Optional;
+				private Methods.Data _data;
+				public string? Text { get => _data.Text; set => _data.Text = value; }
+				public string? Code {get => _data.Code; set => _data.Code = value;}
+				public bool? Optional {get => _data.Optional; set => _data.Optional = value;}
 				public Block Source;
 
+				public Methods.Data GetData() => _data;
+
+				public TableRow() => _data = new Methods.Data();
 				internal TableRow(string code, string text, Block Source, bool optional = true)
 				{
-					Text = text;
-					Code = code;
+					_data = new Methods.Data(code,text,optional);
 					this.Source = Source;
-					Optional = optional;
 				}
 
 				public TableRow(string code, string text, bool optional = true)
 				{
-					Text = text;
-					Code = code;
+					_data = new Methods.Data(code,text,optional);
 					Source = null;
-					Optional = optional;
 				}
 
 				/// <summary>

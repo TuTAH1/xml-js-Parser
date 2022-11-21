@@ -53,7 +53,8 @@ function ResponseOrder()
     var result = {};
     result.prop1 = {customNameLabel: {label: ""Дата заявления"", value: response.statementDate}};
     result.prop2 = {customNameLabel: {label: ""Тип"", value: response.type}};
-    result.prop3 = Order(response.Order, ""{ТипУслуги} "");}
+    result.prop3 = Order(response.Order, ""{ТипУслуги} "");
+
 	return result;
 	}";
 
@@ -81,7 +82,9 @@ function Order(value, title)
 					if(branch.Value.Optional == true)
 					{
 						js += @$"	if(value.{codeName}) ";
-					} else if (branch.Value.Optional!=false) ReWrite(new []{"\nНе найдена обязательность поля ", codeName}, new []{c.red,c.cyan});
+					} else if (branch.Value.Optional!=false) 
+						ReWrite(new []{"\nНе найдена обязательность поля ", codeName}, new []{c.red,c.cyan});
+
 
 					js += @$" result.prop{k} = ";
 					if (branch.Empty)

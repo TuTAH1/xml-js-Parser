@@ -1,17 +1,10 @@
-﻿using DocumentFormat.OpenXml.EMMA;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Numerics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -29,6 +22,7 @@ namespace Titanium {
 	/// </summary>   
 	public static class TypesFuncs { //!22.09.2022 
 
+		private const string NullValue = null;
 
 		#region Parsing
 
@@ -647,7 +641,7 @@ namespace Titanium {
 			/// Makes s.Length be equal to <paramref name="FixedLength"/> by adding <paramref name="Offset"/> symbols if it's too short or cutting it if it's too long
 			/// </summary>
 			/// <param name="s"></param>
-			/// <param name="FixedLengtharam>
+			/// <param name="FixedLengtharam">
 			/// <param name="Align">The position of <see cref="s"/> if it's too short . If it's too long, it will be always aligned Left</param>
 			/// <param name="Filter"></param>
 			/// <param name="Offset">Positive is right, negative is left. Will be sliced if out of range</param>
@@ -738,7 +732,7 @@ namespace Titanium {
 		/// <param name="s"></param>
 		/// <param name="Start"> Start of the result string <para/>
 		///<list type="table"></list>
-		/// /// <item><typeparamref name="default"/>: 0 (don't cut start)</item>
+		/// <item><typeparamref name="default"/>: 0 (don't cut start)</item>
 		/// <item><typeparamref name="int"/>: Start index of the result string (inverse direction if negative)</item>
 		/// <item><typeparamref name="string"/>: The string inside <paramref name="s"/> that will be the start position of the result</item>
 		/// <item><typeparamref name="Regex"/>: The string inside <paramref name="s"/> matches Regex that will be the start position of the result</item>
@@ -759,7 +753,7 @@ namespace Titanium {
 		/// <param name="IncludeEnd">Include <paramref name="End"/> symbols <para/> (doesn't do anything if <paramref name="End"/> is <typeparamref name="int"/>)</param>
 		/// <returns></returns>
 		/// <exception cref=""></exception>
-		public static string Slice<Ts, Te>(this string s, Ts? Start, Te? End, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false)
+		public static string Slice<Ts, Te>(this string s, Ts? Start, Te? End, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false, bool SliceFromStart = true)
 		{
 			if (s.IsNullOrEmpty())
 				if (AlwaysReturnString)
@@ -767,83 +761,135 @@ namespace Titanium {
 				else
 					throw new ArgumentNullException(nameof(s));
 
-			int start;
-			int end;
 			bool BasicSlice = Start is int or null && End is int or null;
 
-			switch (Start)
+			int? start = Start is int i? i : null;
+			int? end = End is int ii ? ii : null;
+
+			int GetStart()
 			{
-				case null:
-						start = 0;
-					break;
-				case int startIndex:
-					start = startIndex;
-					if (start < 0) start = s.Length + start; //: count from end if negative
-					if (start < 0 || start >= s.Length)
-						if (AlwaysReturnString)
-							start = 0;
-						else
-							return null;
-					break;
-				case string startsWith:
-					start = LastStart ? s.LastIndexOfEnd(startsWith) : s.IndexOfEnd(startsWith);
-					if (start < 0) start = 0;
-					if (IncludeStart) start += startsWith.Length;
-					break;
-				case Regex startRegex:
-					var match = LastStart? startRegex.Matches(s).Last() :  startRegex.Match(s);
-					start = match.Index>=0? 
-						(match.Index + (IncludeStart ? 0 : match.Length)) : 0;
-					break;
-				case Func<char,bool>[] startConditions:
-					start = startConditions?.Any()==true? 
-						s.IndexOfT(startConditions, IndexOfEnd: !IncludeStart, RightDirection: !LastStart) : 0;
-					if (start < 0) start = 0;
-					break;
-				default:
-					throw new TypeInitializationException(typeof(Ts).FullName, new ArgumentException($"Type of {nameof(Start)} is not supported"));
+				if (start != null) return (int)start;
+				if(Start is null) return 0;
+
+				start = IndexOfT(s, Start, LastStart, !IncludeStart);
+
+				return start == null || start >= s.Length ? 
+					AlwaysReturnString ? 0 : throw new IndexOutOfRangeException(nameof(start)) :
+					(int)start;
 			}
 
-			if (!BasicSlice) s = s.Slice(start);
-
-			switch (End)
+			int GetEnd()
 			{
-				case null:
-						end = s.Length;
-					break;
-				case int endIndex:
-					end = endIndex;
+				if (end != null) return (int)end;
+				if (End is null) return s.Length;
+				end = IndexOfT(s[1..], End, LastEnd, IncludeEnd)+1; //: starts from 1, so if start and end are the same, it won't be equal
+
+				if (end == 0) end = null;
+				if (end !=null && BasicSlice && start > end) Swap(ref start, ref end);
+				return end ?? (AlwaysReturnString ? s.Length: throw new IndexOutOfRangeException(nameof(end)));
+			}
+
+			try
+			{
+				if (BasicSlice)
+				{
+					start = GetStart();
+					end = GetEnd();
 					if (end < 0) end = s.Length + end; //: count from end if negative
-					if (BasicSlice && start > end) Swap(ref start, ref end);
 					if (end > s.Length) end = s.Length;
-					break;
-				case string endsWith:
-					end = (LastEnd ? s.LastIndexOf(endsWith) : s.IndexOf(endsWith));
-					if(end<0) end = s.Length;
-					if (IncludeEnd) end += endsWith.Length;
-					break;
-				case Regex endregex:
-					var match = LastEnd? endregex.Matches(s).Last() :  endregex.Match(s);
-					end = match.Index>=0? 
-						(match.Index + (LastEnd ? 0 : match.Length)) : 0;
-					break;
-				case Func<char,bool>[] endConditions:
-					end = endConditions?.Any()!=true? 
-						s.IndexOfT(endConditions,IndexOfEnd: IncludeEnd, RightDirection: !LastEnd) : 0;
-					if (end < 0) 
-						if (AlwaysReturnString)
-							end = s.Length-1;
-						else
-							return null;
-					break;
-				default:
-					throw new TypeInitializationException(typeof(Ts).FullName, new ArgumentException($"Type of {nameof(End)} is not supported"));
+					return s.Substring((int)start, (int)(end - start));
+				}
+
+				if (SliceFromStart)
+				{
+					var intStart = GetStart();
+
+					s = s.Slice(intStart); //:slicing so, end == start isn't possible
+
+					return s.Slice(0, GetEnd());
+				}
+				else
+				{
+					end = GetEnd();
+					s = s.Slice(0, (int)end); //:slicing so, end == start isn't possible
+					return s.Slice(GetStart());
+				}
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
+		public class Condition
+		{
+			public Func<char, bool> Func;
+			public bool inclusive; //: Is the rule says the condition SHOULD be (false if it asys the condition souldn't be)
+
+			public Condition(Func<char, bool> Func, bool Inclusive = true)
+			{
+				this.Func = Func;
+				inclusive = Inclusive;
 			}
 
-			return BasicSlice ?
-				s.Substring(start, (end - start)) :
-				s.Slice(0, end);
+			public static implicit operator Func<char, bool>(Condition condition) => condition.Func;
 		}
+
+		public class Conditions
+		{
+			private Condition[] data;
+			public int WordLength { get; }
+			public int Count => data?.Length?? 0;
+
+			public Condition this[int index] => data[index];
+			
+			public Conditions(Condition[] Data)
+			{
+				data = Data;
+				WordLength = data.Count(x => x.inclusive);
+			}
+
+			public static implicit operator Conditions(Condition[] o)
+			{
+				return new Conditions(o);
+			}
+
+			public bool Any() => Count > 0;
+		}
+
+		public static (int Index, int Length)? FindMatch<T>(this string s, T Target, bool LastMatch = false)
+		{
+			if (s.IsNullOrEmpty()) return null;
+
+			switch (Target)
+			{
+				case null:
+					return null;
+				case int indexInt:
+					return (indexInt,0);
+				case ValueTuple<int,int> tuple2:
+					return (tuple2.Item1,tuple2.Item2);
+				//if (start < 0) start = s.Length + start; //: count from end if negative
+				case string indexString:
+					var index = LastMatch? s.LastIndexOf(indexString) : s.IndexOf(indexString);
+					if (index < 0) return null;
+					return (index,indexString.Length);
+				case Regex indexRegex:
+					var match = LastMatch? indexRegex.Matches(s).LastOrDefault() : indexRegex.Match(s);
+					return match is { Index: >= 0 }? 
+						(match.Index, match.Length): null;
+				case Conditions indexConditions:
+					return (indexConditions?.Any() == true)?  
+						(s.IndexOfConditions(indexConditions,RightDirection:!LastMatch),Length: indexConditions.WordLength) : null;
+				default:
+					throw new TypeInitializationException(typeof(T).FullName, new ArgumentException($"Type of {nameof(Target)} is not supported by FindMatch"));
+			}
+		}
+
+		public static int? IndexOfT<T>(this string s, T Target, bool LastTarget = false, bool EndOfTheTarget = false) =>
+			s.FindMatch(Target, LastTarget) is (int index, int length) r? //: if not null
+				r.Index + (EndOfTheTarget ? r.Length : 0) : //:return start/end of the index
+				null;
 
 		/// <summary>
 		/// Removes <paramref name="s"/> symbols from 0 to <paramref name="Start"/><para></para>
@@ -867,20 +913,7 @@ namespace Titanium {
 		/// <returns></returns>
 		/// <exception cref=""></exception>
 		public static string Slice<Ts>(this string s, Ts? Start, bool AlwaysReturnString = false, bool LastStart = false, bool IncludeStart = false) =>
-			s.Slice(Start, int.MaxValue, AlwaysReturnString, LastStart, false, IncludeStart, false);
-
-		public static string SliceFromEnd(this string s, string StartsWith = null, string EndsWith = null, bool AlwaysReturnString = false, bool LastStart = false, bool LastEnd = true, bool IncludeStart = false, bool IncludeEnd = false) //:25.08.2022 includeStart, includeEnd
-			{
-				var end = EndsWith==null? s.Length-1 : LastEnd? s.LastIndexOf(EndsWith) : s.IndexOf(EndsWith);
-				if (end < 0) return  AlwaysReturnString? s : null;
-
-				s = s.Slice(0, end);
-
-				var start = StartsWith == null? 0 : LastStart? s.LastIndexOfEnd(StartsWith) : s.IndexOfEnd(StartsWith);
-				if (start < 0) return  AlwaysReturnString? s : null;
-
-				return IncludeStart? StartsWith : "" + s.Slice(start) + (IncludeEnd? EndsWith : "");
-			}
+			s.Slice(Start, NullValue, AlwaysReturnString, LastStart, false, IncludeStart, false);
 
 			private static int IndexOfEnd(this string s, string s2)
 			{
@@ -891,29 +924,7 @@ namespace Titanium {
 				return i == -1 ? -1 : i + s2.Length;
 			}
 
-			/// <summary>
-			/// Reports the position of a symbol next to last occurance of a string <paramref name="s2"/> (position after the end of <paramref name="s2"/>) 
-			/// </summary>
-			/// <param name="s"></param>
-			/// <param name="s2"></param>
-			/// <returns></returns>  
-			private static int LastIndexOfEnd(this string s, string s2)
-			{
-				if (s == null) 
-					if (s2.Length == 0) return 0;
-				int i = s.LastIndexOf(s2);
-				if (i == -1) return -1;
-				else return i + s2.Length;
-			}
-
-			public enum DirectionEnum
-			{
-				Custom,
-				Right,
-				Left
-			}
-
-			public static int IndexOfT(this string s, Func<char,bool>[] Conditions, int Start = 0, int End = Int32.MaxValue, bool RightDirection = true, bool IndexOfEnd = false) //:22.09.22 Bugfix, deleted useless LastOccurance; Replaced DirectionEnum with bool RightDirection
+			private static int IndexOfConditions(this string s, Conditions Conditions, int Start = 0, int End = Int32.MaxValue, bool RightDirection = true, bool IndexOfEnd = false) //:22.09.22 Bugfix, deleted useless LastOccurance; Replaced DirectionEnum with bool RightDirection
 			{
 				if (End == Int32.MaxValue) End = s.Length-1;
 				if (Start < 0) Start = s.Length + Start;
@@ -927,17 +938,17 @@ namespace Titanium {
 				   !RightDirection && End > Start)
 					Swap(ref Start, ref End);
 				
-				int defaultCurMatchPos = RightDirection? 0 : Conditions.Length-1;
+				int defaultCurMatchPos = RightDirection? 0 : Conditions.Count-1;
 				int curCondition = defaultCurMatchPos;
 				int Result = -1;
 
 				if (RightDirection)
 					for (int i = Start; i < End; i++)
 					{
-						if (Conditions[curCondition](s[i]))
+						if (Conditions[curCondition].Func(s[i]))
 						{
 							curCondition++;
-							if (curCondition != Conditions.Length) continue;
+							if (curCondition != Conditions.Count) continue;
 							Result = i;
 							curCondition = defaultCurMatchPos;
 							//if(!LastOccuarance)
@@ -952,7 +963,7 @@ namespace Titanium {
 				else
 					for (int i = Start; i >= End; i--)
 					{
-						if (Conditions[curCondition](s[i]))
+						if (Conditions[curCondition].Func(s[i]))
 						{
 							curCondition--;
 							if (curCondition != 0) continue;
@@ -963,13 +974,47 @@ namespace Titanium {
 						}
 						else
 						{
-							i += ((Conditions.Length-1) - curCondition);
+							i += ((Conditions.Count-1) - curCondition);
 							curCondition = defaultCurMatchPos;
 						}
 					}
 
 				return Result = Result == -1 || IndexOfEnd ^ !RightDirection?
-					Result : (Result - Conditions.Length) +1;
+					Result : (Result - Conditions.Count) +1;
+			}
+
+			/// <summary>
+			/// Separates the <paramref name="s"/> into the List of strings, splitting by the <paramref name="Separator"/>
+			/// </summary>
+			/// <typeparam name="T"></typeparam>
+			/// <param name="s"></param>
+			/// <param name="Separator">  <para/>
+			///<list type="table"></list>
+			/// <item><typeparamref name="default"/>: 0 (don't cut start)</item>
+			/// <item><typeparamref name="int"/>: Start index of the result string (inverse direction if negative)</item>
+			/// <item><typeparamref name="string"/>: The string inside <paramref name="s"/> that will be the start position of the result</item>
+			/// <item><typeparamref name="Regex"/>: The string inside <paramref name="s"/> matches Regex that will be the start position of the result</item>
+			/// <item><typeparamref name="Func&amp;lt;char,bool&amp;gt;"/>: Условия, которым должны удовлетворять символы начала строки (по функции на 1 символ)</item>
+			/// </param>
+			/// <returns></returns>
+			public static List<string> Split<T>(this string s, T Separator, Side? IncludeSeparator = Side.None, StringSplitOptions options = StringSplitOptions.None) //TODO: Возможно, это можно оптимизировать
+			{
+				var result = new List<string>();
+				bool trim = ((options & StringSplitOptions.TrimEntries) != 0);
+
+				while (true)
+				{
+					var temp = s.FindMatch(Separator);
+					if (!temp.HasValue) break;
+					
+					var match = temp.Value;
+					var occurance = s.Slice(0, match.Index + (IncludeSeparator is Side.End or Side.Both ? match.Length : 0));
+					if (occurance!=null ) result.Add(occurance);
+					
+					s = s.Slice(0, match.Index + ((IncludeSeparator is Side.Start or Side.Both)? match.Length : 0));
+				}
+
+				return result;
 			}
 
 			/// <summary>
@@ -1191,6 +1236,27 @@ namespace Titanium {
 				return s+addiction;
 			}
 
+			public static string ToReadableString<T>(this IEnumerable<T> sequence, string Separator = ", ", string LastSeparator = null, string FirstSeparator = null)
+			{
+				LastSeparator ??= Separator;
+				FirstSeparator ??= Separator;
+				string result = "";
+				int Length = sequence.Count();
+
+				for (int i = 0; i < Length;)
+				{
+					result+= sequence.ElementAt(i++).ToString();
+
+					if (i >= Length) continue;
+					if (i == 1) result += FirstSeparator;
+					else if (i == Length - 1) result += LastSeparator;
+					else result += Separator;
+				}
+
+				return result;
+			}
+
+			public static string[] Split(this string s, Regex Separator) => Separator.Split(s);
 
 			#endregion
 
@@ -1483,7 +1549,8 @@ namespace Titanium {
 			{
 				Start,
 				End,
-				Both
+				Both,
+				None
 			}
 
 			public static string RemoveAllFrom(this string S, string RemovableChars, Side FromWhere = Side.Both, StringComparison ComparisonType = StringComparison.Ordinal)

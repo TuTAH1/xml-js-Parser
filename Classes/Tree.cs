@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Titanium;
+using xml_js_Parser.Classes;
 using static xml_js_Parser.Classes.Methods;
 
 namespace xml_js_Parser.Classes
@@ -106,12 +107,7 @@ namespace xml_js_Parser.Classes
 			return false;
 		}
 
-		private TreeNode(TreeNode<T> Parent, List<TreeNode<T>> Childs, T? Value = default)
-		{
-			this.Childs = Childs;
-			this.Value = Value;
-			this.Parent = Parent;
-		}
+	
 
 		private TreeNode(TreeNode<T> Parent, T? Value = default)
 		{
@@ -125,9 +121,21 @@ namespace xml_js_Parser.Classes
 			return Childs.GetEnumerator();
 		}
 	}
+}
 
-	
-	public static class TreeFuncs
+
+#region Мусорка
+
+/*
+
+private TreeNode(TreeNode<T> Parent, List<TreeNode<T>> Childs, T? Value = default)
+	{
+		this.Childs = Childs;
+		this.Value = Value;
+		this.Parent = Parent;
+	}
+
+public static class TreeFuncs
 	{
 		/// <summary>
 		/// Создаёт потомков внутри дерева, а также потмков внутри созданных потомков, глубина равна длине ValueTypes
@@ -159,7 +167,8 @@ namespace xml_js_Parser.Classes
 				var objValue = NodeData[0].ValueType == null? null : obj.Element(Name(NodeData[0].ValueType))?.Value;
 				var tableRow = Program.Dictionary.GetByCode(objCode);
 				//var critical = objCode == null && objValue == null;
-				if (Program.SkipList.Contains((objCode,false))) tableRow = null;
+				if (Dic.SkipList.Contains((objCode,false))) tableRow = null;
+
 				else if (tableRow == null && NodeData[0].AskIfNotFound) Program.Dictionary.AskName(objCode);
 
 				var leave = new TreeNode<Data>(new Data(obj, tableRow?.Code, tableRow?.Text.Escape(@"'""\"), tableRow?.Optional, objValue, tableRow==null)); //: эскапирование кавычек. Правиль
@@ -168,14 +177,14 @@ namespace xml_js_Parser.Classes
 				{
 					Skip();
 					continue;
-				} */
+				} #1#
 				(TargetTree ?? Tree).Add(leave);
 
 				/*void Skip()
 				{
 					if (leave.CreateChilds(NodeData[start..], Tree) == null)  //: Универсальнее было бы ставить метку на удаление (узла без потомков)
 						NodeData[0].Recursive = false;
-				}*/
+				}#1#
 
 				if (leave.CreateChilds(NodeData[start..]) == null)
 					NodeData[0].Recursive = false;
@@ -187,5 +196,6 @@ namespace xml_js_Parser.Classes
 			return Tree.Childs;
 		}
 	}
+	*/
 
-}
+#endregion

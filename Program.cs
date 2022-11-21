@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -37,34 +37,30 @@ namespace Application
 		//public static Dictionary<Regex, TableRow> Dictionary = new();
 		//public static List<Regex> IgnoreList = new();
 		//public static List<Regex> SkipList = new();
-		public const string DictionaryPath = @"Файлы программы\Словарь.txt";
-		public const string ignore = "!ignore";
-		public const string skip = "!skip";
-		public static List<(string, bool isCode)> SkipList = new();
 		public static Table.Block Dictionary = new Table.Block();
-
-
+		public static Logger _Logger =
+#if DEBUG
+			new Logger(Environment.CurrentDirectory, "Parser_");
+#else
+			null;
+#endif
 		public static Version Version => Assembly.GetExecutingAssembly().GetName().Version;
-		public static Version DicVer = new Version(1,3); //: Dictionary version (версия словаря); Должно использоваться в Updater
-		static void Main(string[] args) {
-			SetConsolePallete(DarkBlue:Color.FromArgb(9, 29, 69), DarkCyan:Color.FromArgb(9, 61, 69), Silver: Color.FromArgb(20,20,20));
-			Process.Start("Updater.exe");
-		
+		public static Version DicVer = new Version(1, 3); //: Dictionary version (версия словаря); Должно использоваться в Updater
+
+		static void Main(string[] args)
+		{
+			SetConsolePallete(DarkBlue: Color.FromArgb(9, 29, 69), DarkCyan: Color.FromArgb(9, 61, 69), Silver: Color.FromArgb(20, 20, 20));
+			Process.Start("Updater.exe"); //: Check updates
+
 			while (true)
 			{
 				RClr();
 				Clear();
-				ReWrite(new []{"xml-js Parser ", $"v{Version} ", "by ","Тит","ов Ив","ан"}, new []{c.lime, c.cyan, c.Default, c.lime,c.green,c.lime});
-				try //TODO: автоматическй выбор тип парсинга, в зависимости от расширения файла
+				ReWrite(new[] { "xml-js Parser ", $"v{Version} ", "by ", "Тит", "ов Ив", "ан" }, new[] { c.lime, c.cyan, c.Default, c.lime, c.green, c.lime });
+				try
 				{
-					ReWrite("Выберите тип парсинга: \n");
-#if DEBUG
-	Parsing(ParsingType.docx);			
-#else
-					Parsing((ParsingType)Menu( ((ParsingType[])Enum.GetValues(typeof(ParsingType))).ToArray(
-								Type => new Option(GetTypeName(Type), Type.ToString())
-								)));
-#endif
+					//ReWrite("Выберите тип парсинга: \n");
+					WriteParsingWindow();
 					WaitKey("выбрать другой файл");
 				}
 				catch (Exception e)
@@ -77,91 +73,58 @@ namespace Application
 		enum ParsingType
 		{
 			docx,
-			xsl,
-			xml
+			xsl
 		}
 
 		private static string GetTypeName(ParsingType type) => type switch
 		{
 			ParsingType.docx => "ТЗ (.docx)",
 			ParsingType.xsl => ".xsl",
-			ParsingType.xml => ".xml (не рекомендуется)",
 			_ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
 		};
 
-		private static void Parsing(ParsingType parsingType)
+		//private static void WriteParsingWindow() => WriteParsingWindow(null);
+
+		private static void WriteParsingWindow()
 		{
-			
 			ReWrite("\nЧтение словаря... ", c.purple, ClearLine: true);
-			Table.Block FileDictionary = GetDictionary(DictionaryPath); //: Чтение словаря
+			Table.Block FileDictionary = Dic.ReadFile(); //: Чтение словаря
 
 			if (FileDictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
 			else ReWrite($"Словарь с {FileDictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
 			Dictionary.Append(FileDictionary);
 
-			//TableMode = quSwitch(true, c.cyan, c.yellow, c.silver, "Таблица", "Словарь");
 			TreeNode<Data> tree = null;
-			string filePath = null;
-
-			switch (parsingType)
-			{
-				case ParsingType.xml:
-				{
-					var xmlFile = XmlFile.Get(); //: Чтение xml файла
-					filePath = xmlFile.Info.FullName.Slice(0,".");
-					var xml = xmlFile.Doc;
-					var docxFilePath = xmlFile.Info.FullName.Slice(0, ".", true, true) + ".docx";
-					if (!File.Exists(docxFilePath))
-						docxFilePath =  GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
-
-					Table.Block DocxTable = new(GetListFromDocx(docxFilePath), "docx"); 
-					Dictionary.Append(DocxTable); //: добавление таблицы из .docx к словарю
-
-					string xmlObject = Name("object"); //:<object> node name
-					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
-					var rootNode = xml.Root.Elements(xmlObject).FirstOrDefault();
-					tree = new TreeNode<Data>(new Data(rootNode));
-					if (rootNode == null) throw new ArgumentNullException(nameof(rootNode), "Корневой object не найден");
-					var objBranches = tree
-						.CreateChilds(new[]
-						{
-							new XMLData("object", "code"), //:Steps
-							new XMLData("object", "code", "name", askIfNotFound: true), //:Groups
-							new XMLData("object", "code", "value", true), //:Objects
-							//new TypesData("attrs"),
-							//new TypesData("entry", "key", "value")
-						}); //: Чтение всего xml и добавление из него элементов в дерево
-					Program.Dictionary = null;
-
-					if (tree.Empty) throw new ArgumentException("дерево пусто");
-					else ReWrite("\nДерево успешно прочитано", c.green, ClearLine: true);
-
-					tree.DeleteGroups(); //: удаление безымянных груп (типа Gp1, APG1 и тд)
-				} break;
-
-				case ParsingType.docx:
-				{
-					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
-
-					var docxFilePath =
+			var supportedExtensions = new[] { "docx"/*, "xsl"*/ };
+			var fileInfo = new FileInfo(
 #if DEBUG
-						@"C:\Users\TITAN\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx";				
+				Environment.UserName.ToUpper() switch
+			{
+				"TITAN" => @$"T:\мои документы\Документы 2017\Работа\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx"		
+				,"IATI" => @"C:\Users\iati\Desktop\jsация\10. Предоставление права пользования участками недр местного значения\ЧТЗ Предоставление права пользования участками недр местного значения .docx"		
+			}
+				
 #else
-						GetFilepath("docx", () => ReWrite("\nСкопируйте word-файл сюда: ", ClearLine: true));
+				GetFilepath(supportedExtensions, () => ReWrite($"\nСкопируйте файл (.{supportedExtensions.ToReadableString(Separator: ", .", " или .")}) сюда: ", ClearLine: true))
 #endif
-					filePath = docxFilePath.Slice(0, ".");
-					tree = CreateTree(GetDocxTable(docxFilePath));
+				);
+
+			switch (fileInfo.Extension)
+			{
+				case ".docx":
+				{
+					ReWrite("\nСоздание дерева... ", c.purple, ClearLine: true);
+					//fileInfo = docxFilePath.Slice(0, ".");
+					tree = CreateTree(DocxTableMethods.OpenFile(fileInfo.FullName));
 
 				} break;
-				case ParsingType.xsl:
+				case ".xsl":
 				{
 					throw new NotImplementedException("xsl парсинг ещё не реализован");
 				} break;
 				default:
-					throw new ArgumentOutOfRangeException(nameof(parsingType), parsingType, null);
+					throw new ArgumentOutOfRangeException(nameof(supportedExtensions), fileInfo.Extension, null);
 			}
-
-			
 
 			var js = CodeGenerator.GenerateJsCode(tree);
 			saveFile(js);
@@ -169,12 +132,12 @@ namespace Application
 
 			void saveFile(string Text)
 			{
-				var fileName = filePath.Slice("\\",int.MaxValue, LastStart:true, LastEnd: true) + ".js";
+				var fileName = fileInfo.Name.Slice(0,".") + ".js";
 				ReWrite("\nВведите название файла: ");
 				fileName = ReadT(InputString: fileName).String();
-				filePath = filePath.Slice(0,"\\",false,true,true) + fileName;
+				fileInfo = new FileInfo(Path.Combine(fileInfo.DirectoryName, fileName));
 
-				if (File.Exists(filePath))
+				if (fileInfo.Exists)
 				{
 					ReWrite(new[] { $"\nФайл  уже существует. ", "Перезаписать? " }, new[] { c.Default, c.red });
 					if (!quSwitch(null, false))
@@ -185,77 +148,9 @@ namespace Application
 				}
 
 				ReWrite("\nИдёт запись файла...", c.purple);
-				File.WriteAllText(filePath, Text);
-				ReWrite(new[] { "\nФайл записан", " по пути ", filePath }, new[] { c.lime, c.Default, c.blue });
+				File.WriteAllText(fileInfo.FullName, Text);
+				ReWrite(new[] {"\nФайл записан", " по пути ", fileInfo.FullName }, new[] { c.lime, c.Default, c.blue });
 			}
-		}
-
-		public static string AskCode(this Table.Block Dictionary, string ruName)
-		{
-			ReWrite(new[] { $"\nНе найдено имя переменной для ",ruName,". Напишите его: " }, new[] { c.red,c.cyan, c.white });
-			
-			var Code = ReadT(Placeholder: "! (удалить блок)").String();
-			var curPos = GetCurPos();
-			if (Code.StartsWith("!")) Code = null;
-			bool optional = true;
-			bool repeat = false;
-			if (Code != null)
-			{
-				optional = !quSwitch("\nПоле обязательно? ");
-				Dictionary.Add(Code, ruName, optional);
-			}
-
-			do
-			{
-				try
-				{
-					File.AppendAllText(DictionaryPath,  
-						Code==null?
-							$"\n!={ruName}" :
-							$"\n{Code}={ruName}={(optional? "1" : "0")}");
-				}
-				catch (Exception e)
-				{
-					ReWrite(new[] { "\nНе удалось сохранить словарь: ", e.Message + ". ", "Повторить попытку?" }, new[] { c.red, c.gray, c.Default });
-					repeat = quSwitch();
-				}
-			} while (repeat);
-
-			return Code;
-		}
-
-		public static string AskName(this Table.Block Dictionary, string Code)
-		{
-			ReWrite(new[] { $"\nНе найдено определение для ",Code,". Напишите его: " }, new[] { c.red,c.cyan, c.white });
-			
-			var ruName = ReadT(Placeholder: "! (Разбить группу)").String();
-			var curPos = GetCurPos();
-			if (ruName.StartsWith("!")) ruName = null;
-			bool optional = true;
-			bool repeat = false;
-			if (ruName != null)
-			{
-				optional = !quSwitch("\nПоле обязательно? ");
-				Dictionary.Add(Code, ruName, optional);
-			}
-
-			do
-			{
-				try
-				{
-					File.AppendAllText(DictionaryPath,  
-						ruName==null?
-							$"\n{Code}=!" :
-							$"\n{Code}={ruName}={(optional? "1" : "0")}");
-				}
-				catch (Exception e)
-				{
-					ReWrite(new[] { "\nНе удалось сохранить словарь: ", e.Message + ". ", "Повторить попытку?" }, new[] { c.red, c.gray, c.Default });
-					repeat = quSwitch();
-				}
-			} while (repeat);
-
-			return ruName;
 		}
 	}
 }

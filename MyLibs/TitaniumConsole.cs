@@ -1413,16 +1413,18 @@ namespace Titanium {
 			while (true)
 			{
 				var cursorPosition = GetCurPos();
-				BeforeReadAction?.Invoke();
+				BeforeReadAction?.Invoke(); // BeforeReadAction (probably write something)
 
-				var ro = ReadT();
-				if (ro.KeyType == ReadKeyType.CancelKey) return null;
+				var ro = ReadT(); // Reading input
+				ReWrite("Нажмите ESC, чтобы отменить ввод",c.green, CurPosH:CPH.Left, CurPosV:CPV.Bottom); //Print tip
+				string filepath = null;
+				if (ro.KeyType == ReadKeyType.CancelKey) goto end; 
 
-				AfterReadAction?.Invoke();
+				AfterReadAction?.Invoke(); // After read action (probably formatting/rewrite
 				var inputString = ro.String();
-				var filepath = inputString.Slice("\"", "\"",true);
+				filepath = inputString.Slice("\"", "\"",true);
 				FileInfo fileInfo;
-				if (filepath.IsNullOrEmpty())
+				if (filepath.IsNullOrEmpty()) //input is empty
 				{
 					SetCurPos(cursorPosition);
 					continue;
@@ -1445,6 +1447,9 @@ namespace Titanium {
 					continue;
 				}
 
+				end:
+
+				ReWrite(CurPosH:CPH.Left, CurPosV:CPV.Bottom); // Clear tip
 				return filepath;
 			}
 		}
@@ -1623,7 +1628,7 @@ namespace Titanium {
 		/// <param name="ShiftRight">Изменение позиции курсора от текущего положения</param>
 		/// <param name="ClearLine">Очистить ли строку, на которую будет выведен текст</param>
 		/// <param name="CurPosH">Позиция текста по горизонтали (по умолчанию – не изменять)</param>
-		/// <param name="CurPosV>Позиция текста по вертикали (по умолчанию – не изменять)</param>
+		/// <param name="CurPosV">Позиция текста по вертикали (по умолчанию – не изменять)</param>
 		/// <param name="TextColor">Цвет текста String</param>
 		/// <param name="BackgroundColor">Цвет фона String</param>
 		/// <param name="ClearLineColor">Цвет фона пустой строки</param>
