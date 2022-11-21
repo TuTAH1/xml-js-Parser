@@ -85,8 +85,7 @@ function Order(value, title)
 					} else if (branch.Value.Optional!=false) 
 						ReWrite(new []{"\nНе найдена обязательность поля ", codeName}, new []{c.red,c.cyan});
 
-
-					js += @$" result.prop{k} = ";
+					js += @$"	result.prop{k} = ";
 					if (branch.Empty)
 						js += @$"{{customNameLabel: {{label: ""{text}"", value: value.{codeName}}}}};";
 					else
