@@ -37,7 +37,6 @@ namespace Application
 		//public static Dictionary<Regex, TableRow> Dictionary = new();
 		//public static List<Regex> IgnoreList = new();
 		//public static List<Regex> SkipList = new();
-		
 		public static Table.Block Dictionary = new Table.Block();
 		public static Logger _Logger =
 #if DEBUG
@@ -94,7 +93,7 @@ namespace Application
 			if (FileDictionary.RowsCount == 0) ReWrite("Словарь пуст", c.red);
 			else ReWrite($"Словарь с {FileDictionary.RowsCount} определениями успешно прочитан", c.green, ClearLine: true);
 			Dictionary.Append(FileDictionary);
-			
+
 			TreeNode<Data> tree = null;
 			var supportedExtensions = new[] { "docx"/*, "xsl"*/ };
 			var fileInfo = new FileInfo(

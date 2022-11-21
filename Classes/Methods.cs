@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Titanium;
 using static Titanium.Consol;
+
 using static xml_js_Parser.Classes.Table;
 
 using DocTable =  DocumentFormat.OpenXml.Wordprocessing.Table;
@@ -30,9 +31,19 @@ namespace xml_js_Parser.Classes
 				Text = text;
 				Optional = optional;
 			}
+
+			public Data(string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
+			{
+				this.Code = code;
+				this.Value = Value;
+				Text = text;
+				Optional = optional;
+				IsGroup = isGroup;
+			}
 		}
-		
+	
 		public static int[] GetMainColumnsIndexes(this DocTableRow tr)
+
 		{
 			var tcs = tr.Elements<DocTableCell>().ToList();
 			var res = new int[4].FillAndGet(-1);
@@ -42,6 +53,7 @@ namespace xml_js_Parser.Classes
 				else if (tcs[i].InnerText.Contains(TextColumnName, StringComparison.OrdinalIgnoreCase)) res[1] = i;
 				else if (tcs[i].InnerText.Contains(IsOptionalColumnName, StringComparison.OrdinalIgnoreCase)) res[2] = i;
 				else if (tcs[i].InnerText.Contains(FormatControl, StringComparison.OrdinalIgnoreCase)) res[3] = i;
+
 			}
 
 			if (res.All(x => x != -1)) return res;

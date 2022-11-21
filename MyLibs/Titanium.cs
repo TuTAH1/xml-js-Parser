@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -914,7 +914,7 @@ namespace Titanium {
 		/// <exception cref=""></exception>
 		public static string Slice<Ts>(this string s, Ts? Start, bool AlwaysReturnString = false, bool LastStart = false, bool IncludeStart = false) =>
 			s.Slice(Start, NullValue, AlwaysReturnString, LastStart, false, IncludeStart, false);
-		
+
 			private static int IndexOfEnd(this string s, string s2)
 			{
 				if (s == null)

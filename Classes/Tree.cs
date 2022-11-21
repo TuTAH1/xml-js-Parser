@@ -168,6 +168,7 @@ public static class TreeFuncs
 				var tableRow = Program.Dictionary.GetByCode(objCode);
 				//var critical = objCode == null && objValue == null;
 				if (Dic.SkipList.Contains((objCode,false))) tableRow = null;
+
 				else if (tableRow == null && NodeData[0].AskIfNotFound) Program.Dictionary.AskName(objCode);
 
 				var leave = new TreeNode<Data>(new Data(obj, tableRow?.Code, tableRow?.Text.Escape(@"'""\"), tableRow?.Optional, objValue, tableRow==null)); //: эскапирование кавычек. Правиль
