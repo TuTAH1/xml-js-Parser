@@ -11,10 +11,10 @@ namespace xml_js_Parser.Classes
 {
 	internal class CodeGenerator
 	{
-		public static string GenerateJsCode(TreeNode<Data> Tree)
+		public static string GenerateJsCode(TreeNode<Data> Tree, string ТипУслуги = null)
 		{
 			ReWrite("\nВведите тип услуги: ");
-			string js = GenerateBasic(ReadT(InputString: "Согласование документации").String());
+			string js = GenerateBasic(ТипУслуги?? ReadT(InputString: "Согласование документации").String());
 			js += GenerateFuncs(Tree);
 			js += GenerateDocs();
 			return js;
@@ -31,10 +31,10 @@ function ResponseOrder()
     var result = {};
     result.prop1 = {customNameLabel: {label: ""Дата заявления"", value: response.statementDate}};
     result.prop2 = {customNameLabel: {label: ""Тип"", value: response.type}};
-    result.prop3 = Order(response.Order, ""{ТипУслуги} "");
+    result.prop3 = Order(response.Order, "" "+ТипУслуги+@" "");
 
 	return result;
-	}";
+}";
 
 		private static string GenerateDocs() =>
 			@"

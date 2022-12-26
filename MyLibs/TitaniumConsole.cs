@@ -1049,7 +1049,7 @@ namespace Titanium {
 		/// <param name="ErrorPosition">вертикальная позиция (отступ) строки, где будет выведена ошибка. Исключительные значения: Int32.Maxvalue – в самом низу окна, Int32.MinValue – в самом верху окна</param>
 		/// <param name="isErrorPosition_Absolute">Является ли ErrorPosition абсолютным значением (иначе, это отступ от текущей строки). Игнорируется при исключительных значениях</param>
 		/// <returns></returns>
-	public static ReadOutput ReadT(Input InputType = Input.String, ConsoleKey[] StopReadKeys = null, ConsoleKey[] CancelReadKeys = null, bool Print = true, c TextColor = c.orange, string InputString = "",bool AllowEmptyString = false, bool ClearLine = false, string Placeholder = "", c PlaceholderColor = c.gray, bool ShowError = false, c ErrorTextColor = c.red, int ErrorPosition = int.MaxValue, bool isErrorPosition_Absolute = false, int? MaxSymbols = null, BigInteger? MaxValue = null, BigInteger? MinValue = null) //:19.08.2022 CancelReadKeys теперь по умолчанию - пустой массив
+	public static ReadOutput ReadT(Input InputType = Input.String, ConsoleKey[] StopReadKeys = null, ConsoleKey[] CancelReadKeys = null, bool Print = true, c TextColor = c.orange, string InputString = "",bool AllowEmptyString = false, bool ClearLine = false, string Placeholder = "", c PlaceholderColor = c.gray, bool ShowError = false, c ErrorTextColor = c.red, int ErrorPosition = int.MaxValue, bool isErrorPosition_Absolute = false, int? MaxSymbols = null, BigInteger? MaxValue = null, BigInteger? MinValue = null) //:26.12.2022 Теперь в время стирания курсор не может переместиться в позицию меньше (левее или выше) изначальной
 		{	
 			//TODO: Сделать изменение цвета текста после завершения ввода
 			//TODO: Сделать показ ошибки при нажатии неподдерживаемой клавиши: добавить  bool ShowError = false, string ErrorTextColor = c.red, int ErrorPosition = Int32.MaxValue, bool isErrorPosition_Absolute = false
@@ -1070,6 +1070,7 @@ namespace Titanium {
 			StopReadKeys ??= new[] { ConsoleKey.Enter }; //TODO:Вообще, лучше создать отдельный класс ReturnKeys, содержащий массив ConsoleKey и переменную ConsoleKeyType (возможно, в виде строки или числа), а в функцию сувать этот массив класса ReturnKeys
 			CancelReadKeys ??= new ConsoleKey[]{ };
 			//ErrorTextColor ??= ;
+			var curPos = GetCurPos();
 
 			ReadT_PrintErrorParametrs p = new ReadT_PrintErrorParametrs(ShowError, ErrorTextColor, ErrorPosition, isErrorPosition_Absolute);
 			static void Error(string Text, ReadT_PrintErrorParametrs p, out bool isErrorPrinted)
@@ -1150,7 +1151,7 @@ namespace Titanium {
 				if (CurrentKey.Key == ConsoleKey.Backspace)
 				{
 					if (InputString == "") continue;
-					if (Print)
+					if (Print && GetCurPos() != curPos)
 						if (CursorLeft == 0)
 						{
 							CursorTop -= 1;

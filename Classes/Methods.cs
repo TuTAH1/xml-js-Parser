@@ -32,14 +32,14 @@ namespace xml_js_Parser.Classes
 				Optional = optional;
 			}
 
-			public Data(string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
+			/*public Data(string? code = null, string text = null, bool? optional = null, string? Value = null, bool isGroup = false)
 			{
 				this.Code = code;
 				this.Value = Value;
 				Text = text;
 				Optional = optional;
 				IsGroup = isGroup;
-			}
+			}*/
 		}
 	
 		public static int[] GetMainColumnsIndexes(this DocTableRow tr)
