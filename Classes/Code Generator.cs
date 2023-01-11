@@ -106,7 +106,7 @@ function Order(value, title)
 							{
 								func += @$"if(value.{leaveCodeName}) ";
 							}else if (leave.Value.Optional!=false)  ReWrite(new []{"Не найдена обязательность поля ", leaveCodeName}, new []{c.red,c.cyan});
-							func += $@"result.prop{i++} = {{customNameLabel: {{label: ""{leaveText}"", value: {leaveCodeName}}}}};";
+							func += $@"result.prop{i++} = {{customNameLabel: {{label: ""{leaveText}"", value: value.{leaveCodeName}}}}};";
 						}
 
 						funcs.Add(Wrap(func, codeName));
